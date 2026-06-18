@@ -526,9 +526,14 @@ export const Costs = ({
       if (filterWarehouseId && item.warehouse_id !== filterWarehouseId) match = false;
       if (searchTerm) {
         const s = searchTerm.toLowerCase();
-        match =
+        const searchMatch =
           (item.content || '').toLowerCase().includes(s) ||
-          (item.cost_code || '').toLowerCase().includes(s);
+          (item.cost_code || '').toLowerCase().includes(s) ||
+          (item.cost_type || '').toLowerCase().includes(s) ||
+          (item.cost_groups?.name || '').toLowerCase().includes(s) ||
+          (item.cost_items?.name || '').toLowerCase().includes(s) ||
+          (item.warehouses?.name || '').toLowerCase().includes(s);
+        if (!searchMatch) match = false;
       }
       return match;
     })
@@ -621,7 +626,7 @@ export const Costs = ({
                     type="text"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    placeholder="Mã, nội dung..."
+                    placeholder="Mã, nội dung, nhóm, kho..."
                     className="w-full px-3 py-2 rounded-lg border border-gray-200 text-xs outline-none focus:ring-2 focus:ring-primary/20 transition-all"
                   />
                 </div>

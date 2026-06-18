@@ -724,7 +724,7 @@ export const Transfer = ({
                   <label className="text-[10px] font-bold text-gray-400 uppercase">Tìm kiếm</label>
                   <input
                     type="text"
-                    placeholder="Vật tư, mã phiếu, ghi chú..."
+                    placeholder="Vật tư, mã phiếu, kho..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="w-full px-3 py-2 rounded-lg border border-gray-200 text-xs outline-none focus:ring-2 focus:ring-primary/20"
@@ -782,8 +782,9 @@ export const Transfer = ({
               const s = searchTerm.toLowerCase();
               const nameMatch = (item.materials?.name || '').toLowerCase().includes(s);
               const codeMatch = (item.transfer_code || '').toLowerCase().includes(s);
-              const noteMatch = (item.notes || '').toLowerCase().includes(s);
-              if (!nameMatch && !codeMatch && !noteMatch) match = false;
+              const fromMatch = (item.from_wh?.name || '').toLowerCase().includes(s);
+              const toMatch = (item.to_wh?.name || '').toLowerCase().includes(s);
+              if (!nameMatch && !codeMatch && !fromMatch && !toMatch) match = false;
             }
             return match;
           })
