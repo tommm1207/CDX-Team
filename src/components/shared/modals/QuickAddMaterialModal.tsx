@@ -169,7 +169,7 @@ export const QuickAddMaterialModal = ({
     <AnimatePresence>
       {show && (
         <div
-          className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
+          className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
           onClick={onClose}
         >
           <motion.div
