@@ -805,6 +805,7 @@ export const MaterialSplitMerge = ({
                             <div className="w-20">
                               <NumericInput
                                 label="kg/cái"
+                                isDecimal
                                 value={o.kg_per_unit || 0}
                                 onChange={(val) => {
                                   const updated = [...outputXa];
