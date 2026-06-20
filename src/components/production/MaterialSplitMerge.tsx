@@ -247,7 +247,7 @@ export const MaterialSplitMerge = ({
         // Create stock_out for source + stock_in for outputs
         await supabase.from('stock_out').insert([
           {
-            slip_code: `XA-${ma_phieu}`,
+            export_code: ma_phieu,
             date: today,
             material_id: nguonXa.material_id,
             warehouse_id: kho_id,
@@ -256,13 +256,14 @@ export const MaterialSplitMerge = ({
             employee_id: user.id,
             notes: `Xả vật tư - Phiếu: ${ma_phieu}`,
             status: 'Chờ duyệt',
-            approved_by: null,
-            approved_date: null,
+            unit_price: 0,
+            total_amount: 0,
           },
         ]);
 
-        const stockInItems = outputXa.map((o: any) => ({
-          slip_code: `XA-${ma_phieu}`,
+        // import_code has UNIQUE constraint — use suffix per output item
+        const stockInItems = outputXa.map((o: any, idx: number) => ({
+          import_code: outputXa.length === 1 ? ma_phieu : `${ma_phieu}-${idx + 1}`,
           date: today,
           material_id: o.material_id,
           warehouse_id: kho_id,
@@ -271,6 +272,8 @@ export const MaterialSplitMerge = ({
           employee_id: user.id,
           notes: `Mảnh ra từ xả vật tư - Phiếu: ${ma_phieu}`,
           status: 'Chờ duyệt',
+          unit_price: 0,
+          total_amount: 0,
         }));
         await supabase.from('stock_in').insert(stockInItems);
       } else {
@@ -297,9 +300,9 @@ export const MaterialSplitMerge = ({
         ];
         await supabase.from('xasa_gop_chi_tiet').insert(details);
 
-        // stock_out for all sources
-        const stockOuts = nguonGop.map((n: any) => ({
-          slip_code: `GOP-${ma_phieu}`,
+        // stock_out for all sources (export_code with suffix per source)
+        const stockOuts = nguonGop.map((n: any, idx: number) => ({
+          export_code: nguonGop.length === 1 ? ma_phieu : `${ma_phieu}-N${idx + 1}`,
           date: today,
           material_id: n.material_id,
           warehouse_id: kho_id,
@@ -308,13 +311,15 @@ export const MaterialSplitMerge = ({
           employee_id: user.id,
           notes: `Gộp vật tư - Phiếu: ${ma_phieu}`,
           status: 'Chờ duyệt',
+          unit_price: 0,
+          total_amount: 0,
         }));
         await supabase.from('stock_out').insert(stockOuts);
 
         // stock_in for output
         await supabase.from('stock_in').insert([
           {
-            slip_code: `GOP-${ma_phieu}`,
+            import_code: ma_phieu,
             date: today,
             material_id: outputGop.material_id,
             warehouse_id: kho_id,
@@ -323,8 +328,8 @@ export const MaterialSplitMerge = ({
             employee_id: user.id,
             notes: `Vật tư gộp ra - Phiếu: ${ma_phieu}`,
             status: 'Chờ duyệt',
-            approved_by: null,
-            approved_date: null,
+            unit_price: 0,
+            total_amount: 0,
           },
         ]);
       }
@@ -349,19 +354,16 @@ export const MaterialSplitMerge = ({
     try {
       const today = toLocalISODate();
 
-      // 1. Approve associated stock_in/out
-      const pref = phieu.loai === 'xa' ? 'XA-' : 'GOP-';
-      const slipCode = `${pref}${phieu.ma_phieu}`;
-
+      // 1. Approve associated stock_in/out (import_code/export_code may have suffixes)
       await supabase
         .from('stock_in')
-        .update({ status: 'Đã duyệt', approved_by: user.id, approved_date: today })
-        .eq('slip_code', slipCode);
+        .update({ status: 'Đã duyệt' })
+        .like('import_code', `${phieu.ma_phieu}%`);
 
       await supabase
         .from('stock_out')
-        .update({ status: 'Đã duyệt', approved_by: user.id, approved_date: today })
-        .eq('slip_code', slipCode);
+        .update({ status: 'Đã duyệt' })
+        .like('export_code', `${phieu.ma_phieu}%`);
 
       // 2. Update phieu status
       const { error } = await supabase
