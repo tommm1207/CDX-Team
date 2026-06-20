@@ -162,8 +162,23 @@ export const MaterialSplitMerge = ({
   };
 
   const addOutputXa = () => {
-    setOutputXa([...outputXa, { material_id: '', material_name: '', so_luong: 0, don_vi: '' }]);
+    setOutputXa([
+      ...outputXa,
+      { material_id: '', material_name: '', so_luong: 0, don_vi: '', kg_per_unit: 0 },
+    ]);
   };
+
+  // Auto-compute nguồn so_luong = Σ(so_luong × kg_per_unit) khi có trọng lượng
+  useEffect(() => {
+    if (mode !== 'xa' || outputXa.length === 0) return;
+    const hasWeight = outputXa.some((o) => o.kg_per_unit > 0);
+    if (!hasWeight) return;
+    const total = outputXa.reduce(
+      (sum: number, o: any) => sum + (o.kg_per_unit > 0 ? o.so_luong * o.kg_per_unit : o.so_luong),
+      0,
+    );
+    setNguonXa((prev) => ({ ...prev, so_luong: Math.round(total * 1000) / 1000 }));
+  }, [outputXa, mode]);
 
   const addNguonGop = () => {
     setNguonGop([
@@ -699,7 +714,11 @@ export const MaterialSplitMerge = ({
                         <div className="mt-3 grid grid-cols-12 gap-3">
                           <div className="col-span-8">
                             <NumericInput
-                              label="Số lượng xả"
+                              label={
+                                outputXa.some((o: any) => o.kg_per_unit > 0)
+                                  ? 'Số lượng xả (Tự tính từ mảnh)'
+                                  : 'Số lượng xả'
+                              }
                               value={nguonXa.so_luong}
                               onChange={(val) => setNguonXa({ ...nguonXa, so_luong: val })}
                             />
@@ -740,44 +759,66 @@ export const MaterialSplitMerge = ({
                       {outputXa.map((o, idx) => (
                         <div
                           key={idx}
-                          className="flex items-center gap-2 mb-2 bg-gray-50 rounded-xl p-3"
+                          className="flex flex-col gap-2 mb-2 bg-gray-50 rounded-xl p-3"
                         >
-                          <div className="flex-1">
-                            <CreatableSelect
-                              value={o.material_id}
-                              options={materialOptions}
-                              onChange={(val) => {
-                                const mat = materials.find((m) => m.id === val);
-                                const updated = [...outputXa];
-                                updated[idx] = {
-                                  ...updated[idx],
-                                  material_id: val,
-                                  material_name: mat?.name || '',
-                                  don_vi: mat?.unit || '',
-                                };
-                                setOutputXa(updated);
-                              }}
-                              placeholder="Chọn vật tư..."
-                              allowCreate={false}
-                            />
+                          <div className="flex items-center gap-2">
+                            <div className="flex-1">
+                              <CreatableSelect
+                                value={o.material_id}
+                                options={materialOptions}
+                                onChange={(val) => {
+                                  const mat = materials.find((m) => m.id === val);
+                                  const updated = [...outputXa];
+                                  updated[idx] = {
+                                    ...updated[idx],
+                                    material_id: val,
+                                    material_name: mat?.name || '',
+                                    don_vi: mat?.unit || '',
+                                  };
+                                  setOutputXa(updated);
+                                }}
+                                placeholder="Chọn vật tư..."
+                                allowCreate={false}
+                              />
+                            </div>
+                            <button
+                              onClick={() => setOutputXa(outputXa.filter((_, i) => i !== idx))}
+                              className="p-1.5 text-red-400 hover:bg-red-50 rounded-lg shrink-0"
+                            >
+                              <Trash2 size={14} />
+                            </button>
                           </div>
-                          <div className="w-20 md:w-24">
-                            <NumericInput
-                              label=""
-                              value={o.so_luong}
-                              onChange={(val) => {
-                                const updated = [...outputXa];
-                                updated[idx] = { ...updated[idx], so_luong: val };
-                                setOutputXa(updated);
-                              }}
-                            />
+                          <div className="flex items-end gap-2">
+                            <div className="w-20">
+                              <NumericInput
+                                label="Số lượng"
+                                value={o.so_luong}
+                                onChange={(val) => {
+                                  const updated = [...outputXa];
+                                  updated[idx] = { ...updated[idx], so_luong: val };
+                                  setOutputXa(updated);
+                                }}
+                              />
+                            </div>
+                            <div className="w-20">
+                              <NumericInput
+                                label="kg/cái"
+                                value={o.kg_per_unit || 0}
+                                onChange={(val) => {
+                                  const updated = [...outputXa];
+                                  updated[idx] = { ...updated[idx], kg_per_unit: val };
+                                  setOutputXa(updated);
+                                }}
+                              />
+                            </div>
+                            {o.kg_per_unit > 0 && (
+                              <div className="pb-1 text-xs font-bold text-orange-600 whitespace-nowrap">
+                                ={' '}
+                                {formatNumber(Math.round(o.so_luong * o.kg_per_unit * 1000) / 1000)}{' '}
+                                kg
+                              </div>
+                            )}
                           </div>
-                          <button
-                            onClick={() => setOutputXa(outputXa.filter((_, i) => i !== idx))}
-                            className="p-1.5 text-red-400 hover:bg-red-50 rounded-lg shrink-0"
-                          >
-                            <Trash2 size={14} />
-                          </button>
                         </div>
                       ))}
                     </div>
