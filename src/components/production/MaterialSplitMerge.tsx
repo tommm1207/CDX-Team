@@ -1229,39 +1229,39 @@ export const MaterialSplitMerge = ({
                 )}
               </div>
 
-              {selectedPhieu.trang_thai === 'cho_duyet' && (
-                <div className="p-6 border-t border-gray-100 bg-gray-50 flex flex-wrap gap-3">
-                  {(user.role === 'Admin' ||
-                    user.role === 'Develop' ||
-                    selectedPhieu.nguoi_tao === user.id) && (
-                    <>
-                      <Button
-                        variant="danger"
-                        className="flex-1 rounded-2xl min-w-[120px]"
-                        icon={Trash2}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeletePhieu(selectedPhieu);
-                        }}
-                        isLoading={submitting}
-                      >
-                        Xóa
-                      </Button>
-                      <Button
-                        variant="primary"
-                        className="flex-1 rounded-2xl min-w-[120px]"
-                        icon={Scissors}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleEditPhieu(selectedPhieu);
-                        }}
-                        isLoading={submitting}
-                      >
-                        Sửa
-                      </Button>
-                    </>
-                  )}
-                  {(user.role === 'Admin' || user.role === 'Develop') && (
+              <div className="p-6 border-t border-gray-100 bg-gray-50 flex flex-wrap gap-3">
+                {(user.role === 'Admin' ||
+                  user.role === 'Develop' ||
+                  selectedPhieu.nguoi_tao === user.id) && (
+                  <>
+                    <Button
+                      variant="danger"
+                      className="flex-1 rounded-2xl min-w-[120px]"
+                      icon={Trash2}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeletePhieu(selectedPhieu);
+                      }}
+                      isLoading={submitting}
+                    >
+                      Xóa
+                    </Button>
+                    <Button
+                      variant="primary"
+                      className="flex-1 rounded-2xl min-w-[120px]"
+                      icon={Scissors}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleEditPhieu(selectedPhieu);
+                      }}
+                      isLoading={submitting}
+                    >
+                      Sửa
+                    </Button>
+                  </>
+                )}
+                {selectedPhieu.trang_thai === 'cho_duyet' &&
+                  (user.role === 'Admin' || user.role === 'Develop') && (
                     <>
                       <Button
                         variant="danger"
@@ -1291,8 +1291,7 @@ export const MaterialSplitMerge = ({
                       </Button>
                     </>
                   )}
-                </div>
-              )}
+              </div>
             </motion.div>
           </div>
         )}
