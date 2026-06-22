@@ -66,6 +66,8 @@ export const MaterialSplitMerge = ({
   const [showFilter, setShowFilter] = useState(false);
   const [showAddMaterial, setShowAddMaterial] = useState(false);
   const [isCapturingTable, setIsCapturingTable] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const reportRef = useRef<HTMLDivElement>(null);
   const [showDetailPhieu, setShowDetailPhieu] = useState(false);
   const [selectedPhieu, setSelectedPhieu] = useState<any>(null);
@@ -133,14 +135,19 @@ export const MaterialSplitMerge = ({
     return `${prefix}${yyyy}${mm}${dd}-${random}`;
   };
 
-  const openModal = (type: 'xa' | 'gop') => {
-    setMode(type);
-    setKhoId('');
-    setGhiChu('');
+  const openModal = (m: 'xa' | 'gop') => {
+    setMode(m);
+    setIsEditing(false);
+    setEditingId(null);
     setNguonXa({ material_id: '', material_name: '', so_luong: 0, don_vi: '', ton_kho: 0 });
-    setOutputXa([]);
-    setNguonGop([]);
+    setOutputXa([{ material_id: '', material_name: '', so_luong: 0, don_vi: '', kg_per_unit: 0 }]);
+    setNguonGop([
+      { material_id: '', material_name: '', so_luong: 0, don_vi: '', ton_kho: 0 },
+      { material_id: '', material_name: '', so_luong: 0, don_vi: '', ton_kho: 0 },
+    ]);
     setOutputGop({ material_id: '', material_name: '', so_luong: 0, don_vi: '' });
+    setGhiChu('');
+    setKhoId('');
     setShowModal(true);
   };
 
@@ -195,26 +202,40 @@ export const MaterialSplitMerge = ({
 
     setSubmitting(true);
     try {
-      const ma_phieu = generateCode(mode);
+      const ma_phieu = isEditing && selectedPhieu ? selectedPhieu.ma_phieu : generateCode(mode);
       const today = toLocalISODate();
 
-      // 1. Create phieu header
-      const { data: phieu, error: phieuErr } = await supabase
-        .from('xasa_gop_phieu')
-        .insert([
-          {
-            ma_phieu,
-            loai: mode,
-            ngay: today,
-            kho_id,
-            nguoi_tao: user.id,
-            ghi_chu: ghi_chu || null,
-            status: 'cho_duyet',
-          },
-        ])
-        .select()
-        .single();
-      if (phieuErr) throw phieuErr;
+      let phieuId = editingId;
+
+      if (isEditing && editingId) {
+        await supabase.from('stock_in').delete().like('import_code', `${ma_phieu}%`);
+        await supabase.from('stock_out').delete().like('export_code', `${ma_phieu}%`);
+        await supabase.from('xasa_gop_chi_tiet').delete().eq('phieu_id', editingId);
+
+        const { error: updateErr } = await supabase
+          .from('xasa_gop_phieu')
+          .update({ kho_id, ghi_chu: ghi_chu || null })
+          .eq('id', editingId);
+        if (updateErr) throw updateErr;
+      } else {
+        const { data: phieu, error: phieuErr } = await supabase
+          .from('xasa_gop_phieu')
+          .insert([
+            {
+              ma_phieu,
+              loai: mode,
+              ngay: today,
+              kho_id,
+              nguoi_tao: user.id,
+              ghi_chu: ghi_chu || null,
+              status: 'cho_duyet',
+            },
+          ])
+          .select()
+          .single();
+        if (phieuErr) throw phieuErr;
+        phieuId = phieu.id;
+      }
 
       if (mode === 'xa') {
         // Validate
@@ -228,14 +249,14 @@ export const MaterialSplitMerge = ({
         // Insert detail records
         const details = [
           {
-            phieu_id: phieu.id,
+            phieu_id: phieuId,
             material_id: nguonXa.material_id,
             vai_tro: 'nguon',
             so_luong: nguonXa.so_luong,
             don_vi: nguonXa.don_vi,
           },
           ...outputXa.map((o: any) => ({
-            phieu_id: phieu.id,
+            phieu_id: phieuId,
             material_id: o.material_id,
             vai_tro: 'ra',
             so_luong: o.so_luong,
@@ -284,14 +305,14 @@ export const MaterialSplitMerge = ({
 
         const details = [
           ...nguonGop.map((n: any) => ({
-            phieu_id: phieu.id,
+            phieu_id: phieuId,
             material_id: n.material_id,
             vai_tro: 'nguon',
             so_luong: n.so_luong,
             don_vi: n.don_vi,
           })),
           {
-            phieu_id: phieu.id,
+            phieu_id: phieuId,
             material_id: outputGop.material_id,
             vai_tro: 'ra',
             so_luong: outputGop.so_luong,
@@ -334,7 +355,11 @@ export const MaterialSplitMerge = ({
         ]);
       }
 
-      if (addToast) addToast(`Phiếu ${ma_phieu} đã được tạo và đang chờ duyệt!`, 'success');
+      if (addToast)
+        addToast(
+          `Phiếu ${ma_phieu} đã được ${isEditing ? 'cập nhật' : 'tạo'} thành công!`,
+          'success',
+        );
       setShowModal(false);
       fetchHistory();
     } catch (err: any) {
@@ -390,8 +415,8 @@ export const MaterialSplitMerge = ({
       const slipCode = `${pref}${phieu.ma_phieu}`;
 
       // Delete stock records
-      await supabase.from('stock_in').delete().eq('slip_code', slipCode);
-      await supabase.from('stock_out').delete().eq('slip_code', slipCode);
+      await supabase.from('stock_in').delete().like('import_code', `${phieu.ma_phieu}%`);
+      await supabase.from('stock_out').delete().like('export_code', `${phieu.ma_phieu}%`);
 
       // Delete phieu chi tiet
       await supabase.from('xasa_gop_chi_tiet').delete().eq('phieu_id', phieu.id);
@@ -399,11 +424,99 @@ export const MaterialSplitMerge = ({
       // Đưa phieu header vào thùng rác (Soft Delete)
       const { error } = await supabase
         .from('xasa_gop_phieu')
-        .update({ status: 'Đã xóa' })
+        .update({ status: 'da_xoa' })
         .eq('id', phieu.id);
       if (error) throw error;
 
       if (addToast) addToast('Đã từ chối và xóa phiếu', 'info');
+      fetchHistory();
+    } catch (err: any) {
+      if (addToast) addToast('Lỗi: ' + err.message, 'error');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleEditPhieu = (phieu: any) => {
+    setMode(phieu.loai);
+    setIsEditing(true);
+    setEditingId(phieu.id);
+    setKhoId(phieu.kho_id || '');
+    setGhiChu(phieu.ghi_chu || '');
+
+    if (phieu.loai === 'xa') {
+      const nguon = phieu.xasa_gop_chi_tiet?.find((c: any) => c.vai_tro === 'nguon');
+      const ra = phieu.xasa_gop_chi_tiet?.filter((c: any) => c.vai_tro === 'ra') || [];
+      if (nguon) {
+        setNguonXa({
+          material_id: nguon.material_id,
+          material_name: nguon.materials?.name || '',
+          so_luong: nguon.so_luong,
+          don_vi: nguon.don_vi,
+          ton_kho: 0,
+        });
+      }
+      setOutputXa(
+        ra.length > 0
+          ? ra.map((r: any) => ({
+              material_id: r.material_id,
+              material_name: r.materials?.name || '',
+              so_luong: r.so_luong,
+              don_vi: r.don_vi,
+              kg_per_unit: 0,
+            }))
+          : [{ material_id: '', material_name: '', so_luong: 0, don_vi: '', kg_per_unit: 0 }],
+      );
+    } else {
+      const nguon = phieu.xasa_gop_chi_tiet?.filter((c: any) => c.vai_tro === 'nguon') || [];
+      const ra = phieu.xasa_gop_chi_tiet?.find((c: any) => c.vai_tro === 'ra');
+      setNguonGop(
+        nguon.length > 0
+          ? nguon.map((n: any) => ({
+              material_id: n.material_id,
+              material_name: n.materials?.name || '',
+              so_luong: n.so_luong,
+              don_vi: n.don_vi,
+              ton_kho: 0,
+            }))
+          : [
+              { material_id: '', material_name: '', so_luong: 0, don_vi: '', ton_kho: 0 },
+              { material_id: '', material_name: '', so_luong: 0, don_vi: '', ton_kho: 0 },
+            ],
+      );
+      if (ra) {
+        setOutputGop({
+          material_id: ra.material_id,
+          material_name: ra.materials?.name || '',
+          so_luong: ra.so_luong,
+          don_vi: ra.don_vi,
+        });
+      } else {
+        setOutputGop({ material_id: '', material_name: '', so_luong: 0, don_vi: '' });
+      }
+    }
+
+    setShowDetailPhieu(false);
+    setShowModal(true);
+  };
+
+  const handleDeletePhieu = async (phieu: any) => {
+    if (!window.confirm(`Bạn có chắc chắn muốn xóa phiếu ${phieu.ma_phieu}?`)) return;
+
+    setSubmitting(true);
+    try {
+      await supabase.from('stock_in').delete().like('import_code', `${phieu.ma_phieu}%`);
+      await supabase.from('stock_out').delete().like('export_code', `${phieu.ma_phieu}%`);
+      await supabase.from('xasa_gop_chi_tiet').delete().eq('phieu_id', phieu.id);
+
+      const { error } = await supabase
+        .from('xasa_gop_phieu')
+        .update({ status: 'da_xoa' })
+        .eq('id', phieu.id);
+      if (error) throw error;
+
+      if (addToast) addToast('Đã xóa phiếu thành công', 'success');
+      setShowDetailPhieu(false);
       fetchHistory();
     } catch (err: any) {
       if (addToast) addToast('Lỗi: ' + err.message, 'error');
@@ -1116,37 +1229,70 @@ export const MaterialSplitMerge = ({
                 )}
               </div>
 
-              {selectedPhieu.trang_thai === 'cho_duyet' &&
-                (user.role === 'Admin' || user.role === 'Develop') && (
-                  <div className="p-6 border-t border-gray-100 bg-gray-50 flex gap-3">
-                    <Button
-                      variant="danger"
-                      className="flex-1 rounded-2xl"
-                      icon={Trash2}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleRejectPhieu(selectedPhieu);
-                        setShowDetailPhieu(false);
-                      }}
-                      isLoading={submitting}
-                    >
-                      Từ chối
-                    </Button>
-                    <Button
-                      variant="success"
-                      className="flex-1 rounded-2xl"
-                      icon={Package}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleApprovePhieu(selectedPhieu);
-                        setShowDetailPhieu(false);
-                      }}
-                      isLoading={submitting}
-                    >
-                      Duyệt phiếu
-                    </Button>
-                  </div>
-                )}
+              {selectedPhieu.trang_thai === 'cho_duyet' && (
+                <div className="p-6 border-t border-gray-100 bg-gray-50 flex flex-wrap gap-3">
+                  {(user.role === 'Admin' ||
+                    user.role === 'Develop' ||
+                    selectedPhieu.nguoi_tao === user.id) && (
+                    <>
+                      <Button
+                        variant="danger"
+                        className="flex-1 rounded-2xl min-w-[120px]"
+                        icon={Trash2}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeletePhieu(selectedPhieu);
+                        }}
+                        isLoading={submitting}
+                      >
+                        Xóa
+                      </Button>
+                      <Button
+                        variant="primary"
+                        className="flex-1 rounded-2xl min-w-[120px]"
+                        icon={Scissors}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleEditPhieu(selectedPhieu);
+                        }}
+                        isLoading={submitting}
+                      >
+                        Sửa
+                      </Button>
+                    </>
+                  )}
+                  {(user.role === 'Admin' || user.role === 'Develop') && (
+                    <>
+                      <Button
+                        variant="danger"
+                        className="flex-1 rounded-2xl min-w-[120px]"
+                        icon={X}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRejectPhieu(selectedPhieu);
+                          setShowDetailPhieu(false);
+                        }}
+                        isLoading={submitting}
+                      >
+                        Từ chối
+                      </Button>
+                      <Button
+                        variant="success"
+                        className="flex-1 rounded-2xl min-w-[120px]"
+                        icon={Package}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleApprovePhieu(selectedPhieu);
+                          setShowDetailPhieu(false);
+                        }}
+                        isLoading={submitting}
+                      >
+                        Duyệt
+                      </Button>
+                    </>
+                  )}
+                </div>
+              )}
             </motion.div>
           </div>
         )}

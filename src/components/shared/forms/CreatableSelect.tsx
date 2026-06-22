@@ -126,6 +126,16 @@ export const CreatableSelect = ({
                 className="absolute z-[9999] left-0 right-0 mt-1 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden"
               >
                 <div className="max-h-60 overflow-y-auto custom-scrollbar">
+                  {filteredOptions.length === 0 && !searchTerm && (
+                    <div className="px-4 py-3 text-sm text-gray-500 italic text-center">
+                      Không có dữ liệu. {allowCreate && 'Hãy gõ để thêm mới.'}
+                    </div>
+                  )}
+                  {filteredOptions.length === 0 && searchTerm && !allowCreate && (
+                    <div className="px-4 py-3 text-sm text-gray-500 italic text-center">
+                      Không tìm thấy kết quả.
+                    </div>
+                  )}
                   {filteredOptions.map((opt) => (
                     <div
                       key={opt.id}
