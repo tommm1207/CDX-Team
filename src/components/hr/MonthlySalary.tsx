@@ -1058,7 +1058,7 @@ export const MonthlySalary = ({
                       >
                         BẢNG TÍNH LƯƠNG
                       </h1>
-                      <p className="text-[11px] font-bold text-gray-500 mt-0.5 whitespace-nowrap">
+                      <p className="text-xs font-bold text-red-600 mt-0.5 whitespace-nowrap">
                         {isCustomRange
                           ? `Kỳ lương: ${formatDate(customRange.start)} — ${formatDate(customRange.end)}`
                           : selectedSalary._effectiveStart && selectedSalary._effectiveEnd
@@ -1216,11 +1216,6 @@ export const MonthlySalary = ({
                             CÒN ĐƯỢC NHẬN:
                           </span>
                           <span className="text-sm font-black text-red-600 whitespace-nowrap flex items-center gap-1">
-                            {selectedSalary.netSalary >= 0 ? (
-                              <TrendingUp size={16} strokeWidth={3} className="text-red-600" />
-                            ) : (
-                              <TrendingDown size={16} strokeWidth={3} className="text-red-600" />
-                            )}
                             {formatCurrency(selectedSalary.netSalary)}
                           </span>
                         </div>

@@ -144,8 +144,8 @@ export const ConstructionDiaryComponent = ({
   };
 
   const handleSave = async () => {
-    if (!formData.work_progress || !formData.warehouse_id) {
-      if (addToast) addToast('Vui lòng nhập nội dung thi công và chọn địa điểm', 'warning');
+    if (!formData.warehouse_id) {
+      if (addToast) addToast('Vui lòng chọn địa điểm', 'warning');
       return;
     }
 
@@ -869,10 +869,7 @@ export const ConstructionDiaryComponent = ({
 
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-primary uppercase tracking-widest ml-1 flex items-center gap-2">
-                    Tiến độ & Diễn biến thi công chính *{' '}
-                    <span className="text-[8px] bg-primary/10 px-1.5 py-0.5 rounded italic">
-                      Rất quan trọng
-                    </span>
+                    Tiến độ & Diễn biến thi công chính
                   </label>
                   <textarea
                     rows={6}

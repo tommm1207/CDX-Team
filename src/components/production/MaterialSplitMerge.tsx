@@ -107,10 +107,12 @@ export const MaterialSplitMerge = ({
         .select(
           '*, warehouses(name), users(full_name), xasa_gop_chi_tiet(*, materials(name, code))',
         )
-        .or('status.is.null,status.neq.Đã xóa')
         .order('created_at', { ascending: false });
       if (error) throw error;
-      setHistory(data || []);
+      const validData = (data || []).filter(
+        (item: any) => item.status !== 'da_xoa' && item.status !== 'Đã xóa',
+      );
+      setHistory(validData);
     } catch (err: any) {
       console.error('Error:', err);
     } finally {

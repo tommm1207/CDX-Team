@@ -166,11 +166,6 @@ export const Notes = ({
   };
 
   const handleSave = async () => {
-    if (!formData.content) {
-      if (addToast) addToast('Vui lòng nhập nội dung note', 'error');
-      return;
-    }
-
     setSubmitting(true);
     try {
       const computedRelatedObject =
@@ -670,9 +665,7 @@ export const Notes = ({
                   />
                 </div>
                 <div>
-                  <label className="text-[10px] font-bold text-gray-400 uppercase">
-                    Nội dung <span className="text-red-500">*</span>
-                  </label>
+                  <label className="text-[10px] font-bold text-gray-400 uppercase">Nội dung</label>
                   <textarea
                     value={formData.content}
                     onChange={(e) => setFormData({ ...formData, content: e.target.value })}
