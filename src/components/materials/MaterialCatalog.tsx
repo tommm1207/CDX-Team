@@ -259,7 +259,7 @@ export const MaterialCatalog = ({
     const usage = await checkUsage('material', item.id);
     setEditingInUse(usage.inUse);
     if (usage.inUse && addToast) {
-      addToast(`Vật tư đang được sử dụng — một số trường (đơn vị, nhóm, kho) sẽ bị khóa.`, 'info');
+      addToast(`Vật tư đã phát sinh giao dịch — mã vật tư đã được khóa cố định.`, 'info');
     }
     setFormData(item);
     setIsEditing(true);
@@ -612,7 +612,7 @@ export const MaterialCatalog = ({
                     {/* 1. NHÓM — chọn đầu tiên để sinh mã */}
                     <div className="md:col-span-2">
                       <CreatableSelect
-                        label={`Nhóm vật tư *${isEditing && editingInUse ? ' 🔒' : ''}`}
+                        label={`Nhóm vật tư *`}
                         value={formData.group_id}
                         options={groups}
                         onChange={async (val) => {
@@ -650,7 +650,6 @@ export const MaterialCatalog = ({
                         }}
                         placeholder="Chọn nhóm trước để sinh mã tự động..."
                         required
-                        disabled={isEditing && editingInUse}
                       />
                     </div>
 
@@ -683,7 +682,7 @@ export const MaterialCatalog = ({
                     {/* 3. Right column: Đơn vị tính */}
                     <div>
                       <CreatableSelect
-                        label={`Đơn vị tính${isEditing && editingInUse ? ' 🔒' : ''}`}
+                        label={`Đơn vị tính`}
                         value={formData.unit}
                         options={Array.from(new Set(materials.map((m) => m.unit)))
                           .filter(Boolean)
@@ -691,7 +690,6 @@ export const MaterialCatalog = ({
                         onChange={(val) => setFormData({ ...formData, unit: val })}
                         onCreate={(val) => setFormData({ ...formData, unit: val })}
                         placeholder="Chọn hoặc nhập mới..."
-                        disabled={isEditing && editingInUse}
                       />
                     </div>
 
