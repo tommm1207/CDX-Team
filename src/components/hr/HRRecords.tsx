@@ -11,6 +11,7 @@ import {
   UserPlus,
   AlertCircle,
   CheckCircle,
+  Lock,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { supabase } from '@/lib/supabase';
@@ -805,7 +806,7 @@ export const HRRecords = ({
                         className="w-full px-4 py-2 rounded-xl border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-primary/20"
                       />
                     </div>
-                    {user.role === 'Develop' && (
+                    {user.role === 'Develop' ? (
                       <div className="space-y-1">
                         <label className="text-[10px] font-bold text-gray-400 uppercase">
                           Mật khẩu ứng dụng
@@ -818,6 +819,29 @@ export const HRRecords = ({
                           className="w-full px-4 py-2 rounded-xl border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-primary/20"
                         />
                       </div>
+                    ) : (
+                      isEditing &&
+                      ['Admin'].includes(user.role) && (
+                        <div className="space-y-1 flex flex-col justify-end">
+                          <label className="text-[10px] font-bold text-gray-400 uppercase opacity-0 hidden md:block">
+                            Reset Pass
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setFormData({ ...formData, app_pass: '123456' });
+                              if (addToast)
+                                addToast(
+                                  'Đã đặt lại mật khẩu về 123456. Vui lòng bấm Lưu Cập Nhật!',
+                                  'info',
+                                );
+                            }}
+                            className="w-full px-4 py-2 bg-amber-100 text-amber-700 rounded-xl font-bold hover:bg-amber-200 transition-colors text-sm h-[38px] flex items-center justify-center gap-2"
+                          >
+                            <Lock size={16} /> Reset MK về 123456
+                          </button>
+                        </div>
+                      )
                     )}
                     <div className="space-y-1 relative z-[60]">
                       <CreatableSelect

@@ -29,6 +29,7 @@ export const getMenuGroups = (pendingCount: number) => [
     title: 'QUẢN LÝ TÀI CHÍNH',
     items: [
       { id: 'costs', label: 'Chi phí', icon: Wallet },
+      { id: 'expense-settlements', label: 'Phiếu quyết toán', icon: FileText },
       { id: 'cost-groups', label: 'Nhóm chi phí', icon: Layers },
       { id: 'cost-report', label: 'Lệnh Chi phí', icon: FileText },
       { id: 'pending-approvals', label: 'Phiếu duyệt', icon: ClipboardCheck, badge: pendingCount },

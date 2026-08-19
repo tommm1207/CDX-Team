@@ -43,18 +43,20 @@ export const MonthlySalary = ({
 }) => {
   const [salaries, setSalaries] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [isCapturing, setIsCapturing] = useState(false);
   const [hideZero, setHideZero] = useState(false);
   const [showFilter, setShowFilter] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<SortOption>('date');
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
-
-  const [isMainCustomRange, setIsMainCustomRange] = useState(false);
-  const [filterStartDate, setFilterStartDate] = useState('');
-  const [filterEndDate, setFilterEndDate] = useState('');
+  const [filterStartDate, setFilterStartDate] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
+  });
+  const [filterEndDate, setFilterEndDate] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate()).padStart(2, '0')}`;
+  });
 
   // Refs
   const mainTableRef = useRef<HTMLDivElement>(null);
@@ -72,7 +74,7 @@ export const MonthlySalary = ({
 
   useEffect(() => {
     fetchSalaries();
-  }, [selectedMonth, selectedYear, isMainCustomRange, filterStartDate, filterEndDate]);
+  }, [filterStartDate, filterEndDate]);
 
   const fetchSalaries = async () => {
     setLoading(true);
@@ -96,16 +98,8 @@ export const MonthlySalary = ({
 
       const { data: settings } = await supabase.from('salary_settings').select('*');
 
-      let queryStart = '';
-      let queryEnd = '';
-
-      if (isMainCustomRange && filterStartDate && filterEndDate) {
-        queryStart = filterStartDate;
-        queryEnd = filterEndDate;
-      } else {
-        queryStart = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-01`;
-        queryEnd = toLocalISODate(new Date(selectedYear, selectedMonth, 0));
-      }
+      const queryStart = filterStartDate;
+      const queryEnd = filterEndDate;
 
       let attQuery = supabase
         .from('attendance')
@@ -396,7 +390,7 @@ export const MonthlySalary = ({
       // Wait for Safari to stabilize
       await new Promise((resolve) => setTimeout(resolve, 900));
 
-      const fileName = `Phieu_Luong_${selectedSalary.full_name}_T${selectedMonth}_${selectedYear}.png`;
+      const fileName = `Phieu_Luong_${selectedSalary.full_name}_${formatDate(filterStartDate).replace(/\//g, '')}_${formatDate(filterEndDate).replace(/\//g, '')}.png`;
       const scale = 4; // High resolution for premium quality
 
       // Step 1: Capture the bill base
@@ -474,7 +468,7 @@ export const MonthlySalary = ({
             await navigator.share({
               files: [file],
               title: 'Phiếu Lương',
-              text: `Phiếu lương tháng ${selectedMonth}/${selectedYear} của ${selectedSalary.full_name}`,
+              text: `Phiếu lương từ ${formatDate(filterStartDate)} đến ${formatDate(filterEndDate)} của ${selectedSalary.full_name}`,
             });
             if (addToast) addToast('Đã mở bảng chia sẻ!', 'success');
             return;
@@ -600,8 +594,15 @@ export const MonthlySalary = ({
 
     const ws = XLSX.utils.aoa_to_sheet(data);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, `Luong T${selectedMonth}-${selectedYear}`);
-    XLSX.writeFile(wb, `CDX_BangLuong_T${selectedMonth}_${selectedYear}.xlsx`);
+    XLSX.utils.book_append_sheet(
+      wb,
+      ws,
+      `Luong ${formatDate(filterStartDate).replace(/\//g, '')}-${formatDate(filterEndDate).replace(/\//g, '')}`,
+    );
+    XLSX.writeFile(
+      wb,
+      `CDX_BangLuong_${formatDate(filterStartDate).replace(/\//g, '')}_${formatDate(filterEndDate).replace(/\//g, '')}.xlsx`,
+    );
   };
 
   // Note: image capture handled by PageToolbar via captureOptions
@@ -615,10 +616,7 @@ export const MonthlySalary = ({
           tableRef={mainTableRef}
           captureOptions={{
             reportTitle: 'BẢNG TÍNH LƯƠNG',
-            subtitle:
-              isMainCustomRange && filterStartDate && filterEndDate
-                ? `Kỳ lương: ${formatDate(filterStartDate)} - ${formatDate(filterEndDate)}`
-                : `Kỳ lương: Tháng ${selectedMonth}/${selectedYear}`,
+            subtitle: `Kỳ lương: ${formatDate(filterStartDate)} - ${formatDate(filterEndDate)}`,
             showNetSalary: true,
           }}
           onImageCaptured={setPreviewImageUrl}
@@ -641,47 +639,24 @@ export const MonthlySalary = ({
         onReset={() => {
           setSearchTerm('');
           setHideZero(false);
-          setIsMainCustomRange(false);
-          setFilterStartDate('');
-          setFilterEndDate('');
-          setSelectedMonth(new Date().getMonth() + 1);
-          setSelectedYear(new Date().getFullYear());
+          const d = new Date();
+          setFilterStartDate(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`);
+          setFilterEndDate(
+            `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate()).padStart(2, '0')}`,
+          );
         }}
       >
-        <div className="flex items-center justify-between border-b border-gray-100 pb-2">
-          <label className="text-[10px] font-bold text-gray-400 uppercase">
-            Khoảng ngày tùy chọn
+        <div className="flex items-center gap-3">
+          <label className="text-[10px] font-bold text-gray-400 uppercase whitespace-nowrap">
+            Kỳ lương:
           </label>
-          <button
-            onClick={() => setIsMainCustomRange(!isMainCustomRange)}
-            className={`relative inline-flex items-center w-11 h-6 rounded-full transition-all duration-300 shadow-inner ${isMainCustomRange ? 'bg-primary' : 'bg-gray-200'}`}
-          >
-            <span
-              className={`inline-block w-4 h-4 bg-white rounded-full shadow-md transform transition-transform duration-300 ml-1 ${isMainCustomRange ? 'translate-x-5' : 'translate-x-0'}`}
-            />
-          </button>
-        </div>
-
-        {isMainCustomRange ? (
           <DateRangeFilter
             startDate={filterStartDate}
             endDate={filterEndDate}
             onStartChange={setFilterStartDate}
             onEndChange={setFilterEndDate}
           />
-        ) : (
-          <div className="flex items-center gap-3">
-            <label className="text-[10px] font-bold text-gray-400 uppercase whitespace-nowrap">
-              Kỳ lương:
-            </label>
-            <MonthYearPicker
-              selectedMonth={selectedMonth}
-              selectedYear={selectedYear}
-              onMonthChange={setSelectedMonth}
-              onYearChange={setSelectedYear}
-            />
-          </div>
-        )}
+        </div>
         <HideZeroToggle value={hideZero} onChange={setHideZero} label="Ẩn dòng thực lĩnh = 0" />
         <FilterSearchInput
           value={searchTerm}
@@ -759,22 +734,12 @@ export const MonthlySalary = ({
                 <tr
                   key={s.id}
                   onClick={() => {
-                    // Lưu effective range vào salary data
-                    const effStart =
-                      isMainCustomRange && filterStartDate && filterEndDate
-                        ? filterStartDate
-                        : `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-01`;
-                    const effEnd =
-                      isMainCustomRange && filterStartDate && filterEndDate
-                        ? filterEndDate
-                        : toLocalISODate(new Date(selectedYear, selectedMonth, 0));
-
                     setSelectedSalary({
                       ...s,
-                      _effectiveStart: effStart,
-                      _effectiveEnd: effEnd,
+                      _effectiveStart: filterStartDate,
+                      _effectiveEnd: filterEndDate,
                     });
-                    setCustomRange({ start: effStart, end: effEnd });
+                    setCustomRange({ start: filterStartDate, end: filterEndDate });
                     setIsCustomRange(false); // Luôn false khi mở, chỉ true khi user tự bật
                     setUserChangedDates(false);
                     setShowDetailModal(true);
@@ -789,8 +754,8 @@ export const MonthlySalary = ({
                         : s.id.includes('-')
                           ? '-'
                           : s.id}
-                      -{selectedMonth.toString().padStart(2, '0')}
-                      {selectedYear.toString().slice(-2)}
+                      - {formatDate(filterStartDate).slice(0, 5)}
+                      {formatDate(filterStartDate).slice(8)}
                     </div>
                   </td>
                   <td className="px-4 py-3">
@@ -926,7 +891,7 @@ export const MonthlySalary = ({
                         ? `${formatDate(customRange.start)} → ${formatDate(customRange.end)}`
                         : selectedSalary._effectiveStart && selectedSalary._effectiveEnd
                           ? `${formatDate(selectedSalary._effectiveStart)} → ${formatDate(selectedSalary._effectiveEnd)}`
-                          : `THÁNG ${selectedMonth}/${selectedYear}`}
+                          : `KỲ LƯƠNG: ${formatDate(filterStartDate)} - ${formatDate(filterEndDate)}`}
                     </p>
                   </div>
                 </div>
@@ -1064,8 +1029,7 @@ export const MonthlySalary = ({
                           : selectedSalary._effectiveStart && selectedSalary._effectiveEnd
                             ? `Kỳ lương: ${formatDate(selectedSalary._effectiveStart)} — ${formatDate(selectedSalary._effectiveEnd)}`
                             : (() => {
-                                const lastDay = new Date(selectedYear, selectedMonth, 0).getDate();
-                                return `Kỳ lương: Tháng ${selectedMonth}/${selectedYear} (1/${selectedMonth} - ${lastDay}/${selectedMonth})`;
+                                return `Kỳ lương: ${formatDate(filterStartDate)} - ${formatDate(filterEndDate)}`;
                               })()}
                       </p>
                       {/* Employee name row with Autofit logic */}
@@ -1305,7 +1269,7 @@ export const MonthlySalary = ({
       {previewImageUrl && (
         <ReportImagePreviewModal
           imageDataUrl={previewImageUrl}
-          fileName={`CDX_BangLuong_T${selectedMonth}_${selectedYear}.png`}
+          fileName={`CDX_BangLuong_${formatDate(filterStartDate).replace(/\//g, '')}_${formatDate(filterEndDate).replace(/\//g, '')}.png`}
           onClose={() => setPreviewImageUrl(null)}
         />
       )}

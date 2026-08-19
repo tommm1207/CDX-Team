@@ -8,6 +8,7 @@ import {
   User as UserIcon,
   LogOut,
   UserCircle,
+  Lock,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { SidebarItem } from '@/components/layout/SidebarItem';
@@ -162,6 +163,16 @@ export const MainLayout = ({
                     >
                       <UserCircle size={18} className="text-gray-400" />
                       <span>Hồ sơ cá nhân</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        onNavigate('change-password');
+                        setIsUserMenuOpen(false);
+                      }}
+                      className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm hover:bg-gray-50 transition-colors"
+                    >
+                      <Lock size={18} className="text-gray-400" />
+                      <span>Đổi mật khẩu</span>
                     </button>
                     <div className="h-px bg-gray-100 my-2 mx-2" />
                     <button

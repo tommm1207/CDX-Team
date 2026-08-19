@@ -93,6 +93,25 @@ export interface Cost {
   unit_price?: number;
   total_amount?: number;
   notes?: string;
+  settlement_id?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface ExpenseSettlement {
+  id: string;
+  settlement_code: string;
+  title: string;
+  employee_id: string;
+  date: string;
+  previous_balance: number;
+  total_advance: number;
+  total_cost: number;
+  final_balance: number;
+  status: string;
+  reviewer_id?: string;
+  image_url?: string;
+  notes?: string;
   created_at?: string;
   updated_at?: string;
 }
@@ -165,6 +184,7 @@ export interface Advance {
   type: string; // 'Tạm ứng' | 'Phụ cấp'
   notes?: string;
   status?: string;
+  settlement_id?: string;
   created_at?: string;
 }
 

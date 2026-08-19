@@ -9,7 +9,7 @@ import {
   ArrowRight,
   Download,
 } from 'lucide-react';
-import bcrypt from 'bcryptjs';
+
 import { supabase } from '@/lib/supabase';
 import { Employee } from '@/types';
 import { isUUID, slugify } from '@/utils/helpers';
@@ -45,6 +45,18 @@ export const LoginPage = ({ onLogin }: { onLogin: (user: Employee) => void }) =>
     setLoading(true);
     setError('');
 
+    if (!employeeId.trim()) {
+      setError('Vui lòng nhập mã nhân viên');
+      setLoading(false);
+      return;
+    }
+
+    if (!password.trim()) {
+      setError('Vui lòng nhập mật khẩu');
+      setLoading(false);
+      return;
+    }
+
     try {
       let query = supabase.from('users').select('*');
 
@@ -67,22 +79,12 @@ export const LoginPage = ({ onLogin }: { onLogin: (user: Employee) => void }) =>
         return;
       }
 
-      // Support cả plaintext (chưa migrate) lẫn bcrypt hash
       const storedPass: string = data.app_pass || '';
-      const isHashed = storedPass.startsWith('$2');
-      const passwordMatch = isHashed
-        ? await bcrypt.compare(password, storedPass)
-        : password === storedPass;
+      const passwordMatch = password === storedPass;
 
       if (!passwordMatch) {
         setError('Mã nhân viên hoặc mật khẩu không đúng');
         return;
-      }
-
-      // Nếu còn plaintext → tự động hash và lưu lại
-      if (!isHashed) {
-        const hashed = await bcrypt.hash(password, 10);
-        await supabase.from('users').update({ app_pass: hashed }).eq('id', data.id);
       }
 
       onLogin(data as Employee);

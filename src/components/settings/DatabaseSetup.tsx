@@ -139,6 +139,26 @@ CREATE TABLE IF NOT EXISTS costs (
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
+-- 8.1. Expense Settlements table
+CREATE TABLE IF NOT EXISTS expense_settlements (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  settlement_code TEXT UNIQUE,
+  title TEXT NOT NULL,
+  employee_id UUID REFERENCES users(id),
+  date DATE NOT NULL,
+  previous_balance NUMERIC DEFAULT 0,
+  total_advance NUMERIC DEFAULT 0,
+  total_cost NUMERIC DEFAULT 0,
+  final_balance NUMERIC DEFAULT 0,
+  status TEXT DEFAULT 'Chờ duyệt',
+  reviewer_id UUID REFERENCES users(id),
+  image_url TEXT,
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+ALTER TABLE costs ADD COLUMN IF NOT EXISTS settlement_id UUID REFERENCES expense_settlements(id);
 -- 9. Attendance table
 CREATE TABLE IF NOT EXISTS attendance (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -161,6 +181,8 @@ CREATE TABLE IF NOT EXISTS advances (
   status TEXT DEFAULT 'Chờ duyệt',
   created_at TIMESTAMPTZ DEFAULT now()
 );
+
+ALTER TABLE advances ADD COLUMN IF NOT EXISTS settlement_id UUID REFERENCES expense_settlements(id);
 
 -- 11. Reminders table
 CREATE TABLE IF NOT EXISTS reminders (
@@ -399,6 +421,12 @@ CREATE POLICY "Admins can manage bom items" ON bom_items FOR ALL USING (get_user
 -- 19. Production Orders Policies
 CREATE POLICY "Everyone can view production orders" ON production_orders FOR SELECT USING (true);
 CREATE POLICY "Admins can manage production orders" ON production_orders FOR ALL USING (get_user_role() IN ('Admin', 'Develop'));
+
+-- 19.1 Expense Settlements Policies
+CREATE POLICY "Everyone can view expense settlements" ON expense_settlements FOR SELECT USING (true);
+CREATE POLICY "Users can insert expense settlements" ON expense_settlements FOR INSERT WITH CHECK (auth.uid() = employee_id OR get_user_role() IN ('Admin', 'Develop'));
+CREATE POLICY "Admins can manage expense settlements" ON expense_settlements FOR ALL USING (get_user_role() IN ('Admin', 'Develop'));
+
 
 -- 20. Construction Diaries Policies
 CREATE POLICY "Everyone can view diaries" ON construction_diaries FOR SELECT USING (true);

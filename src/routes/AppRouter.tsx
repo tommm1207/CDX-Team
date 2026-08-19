@@ -8,6 +8,7 @@ import { Advances } from '@/components/hr/Advances';
 import { MonthlySalary } from '@/components/hr/MonthlySalary';
 import { SalarySettings } from '@/components/hr/SalarySettings';
 import { Costs } from '@/components/finance/Costs';
+import { ExpenseSettlements } from '@/components/finance/ExpenseSettlements';
 import { CostReport } from '@/components/finance/CostReport';
 import { CostFilter } from '@/components/finance/CostFilter';
 import { PendingApprovals } from '@/components/finance/PendingApprovals';
@@ -42,6 +43,7 @@ import { DatabaseSetup } from '@/components/settings/DatabaseSetup';
 import { Employee } from '@/types';
 import { ErrorBoundary } from '@/components/shared';
 import { ContractModule } from '@/components/contracts/ContractModule';
+import { ChangePassword } from '@/components/auth/ChangePassword';
 
 interface AppRouterProps {
   currentPage: string;
@@ -110,6 +112,8 @@ export const AppRouter = ({
           />
         </ErrorBoundary>
       );
+    case 'expense-settlements':
+      return <ExpenseSettlements user={user} onBack={goBack} addToast={addToast} />;
     case 'cost-groups':
       if (!isAdmin) {
         return (
@@ -362,6 +366,8 @@ export const AppRouter = ({
           />
         );
       return <DatabaseSetup onBack={goBack} />;
+    case 'change-password':
+      return <ChangePassword user={user} onBack={goBack} addToast={addToast} />;
     default:
       return (
         <div className="p-4 md:p-6 space-y-6">

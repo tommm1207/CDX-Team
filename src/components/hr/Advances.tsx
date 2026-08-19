@@ -521,6 +521,16 @@ export const Advances = ({
               <div className="p-6 space-y-4">
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-gray-400 uppercase">Ngày *</label>
+                    <input
+                      type="date"
+                      required
+                      value={formData.date}
+                      onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                      className="w-full px-4 py-2 rounded-xl border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-primary/20"
+                    />
+                  </div>
+                  <div className="space-y-1">
                     <label className="text-[10px] font-bold text-gray-400 uppercase">
                       Nhân viên *
                     </label>
@@ -537,16 +547,6 @@ export const Advances = ({
                         </option>
                       ))}
                     </select>
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-gray-400 uppercase">Ngày *</label>
-                    <input
-                      type="date"
-                      required
-                      value={formData.date}
-                      onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                      className="w-full px-4 py-2 rounded-xl border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-primary/20"
-                    />
                   </div>
                   <NumericInput
                     label="Số tiền *"
