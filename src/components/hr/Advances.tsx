@@ -27,6 +27,7 @@ import { SortButton, SortOption } from '@/components/shared';
 import { ReportPreviewModal } from '@/components/shared';
 import { ExcelButton } from '@/components/shared';
 import { DateRangeFilter, FilterSearchInput } from '@/components/shared';
+import { logAudit } from '@/utils/auditLogger';
 
 export const Advances = ({
   user,
@@ -184,11 +185,22 @@ export const Advances = ({
           .update(payload)
           .eq('id', selectedItem.id);
         if (error) throw error;
+        await logAudit(user, {
+          module: 'FINANCE',
+          action: 'UPDATE',
+          description: `Cập nhật ${activeTab === 'advances' ? 'tạm ứng' : 'phụ cấp'}: ${payload.amount?.toLocaleString('vi-VN')} VNĐ`,
+          recordId: selectedItem.id,
+        });
       } else {
         const { error } = await supabase
           .from(activeTab === 'advances' ? 'advances' : 'allowances')
           .insert([payload]);
         if (error) throw error;
+        await logAudit(user, {
+          module: 'FINANCE',
+          action: 'CREATE',
+          description: `Tạo mới ${activeTab === 'advances' ? 'tạm ứng' : 'phụ cấp'}: ${payload.amount?.toLocaleString('vi-VN')} VNĐ`,
+        });
       }
 
       setShowModal(false);
@@ -228,6 +240,13 @@ export const Advances = ({
       const { error } = await supabase.from(table).delete().eq('id', deletingId);
 
       if (error) throw error;
+
+      await logAudit(user, {
+        module: 'FINANCE',
+        action: 'DELETE',
+        description: `Xóa ${activeTab === 'advances' ? 'tạm ứng' : 'phụ cấp'} khỏi hệ thống`,
+        recordId: deletingId,
+      });
 
       if (addToast) addToast('Xóa thành công!', 'success');
 

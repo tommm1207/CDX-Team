@@ -19,6 +19,7 @@ import { ErrorBoundary } from '@/components/shared';
 
 // Auth
 import { LoginPage } from '@/components/auth/LoginPage';
+import { logAudit } from '@/utils/auditLogger';
 
 export default function App() {
   const [user, setUser] = useState<Employee | null>(() => {
@@ -38,10 +39,17 @@ export default function App() {
     localStorage.setItem('cdx_user', JSON.stringify(u));
   }, []);
 
-  const handleLogout = useCallback(() => {
+  const handleLogout = useCallback(async () => {
+    if (user) {
+      await logAudit(user, {
+        module: 'AUTH',
+        action: 'LOGOUT',
+        description: 'Đăng xuất hệ thống',
+      });
+    }
     setUser(null);
     localStorage.removeItem('cdx_user');
-  }, []);
+  }, [user]);
 
   // Check for missing configuration
   const isConfigMissing =
@@ -223,6 +231,12 @@ export default function App() {
         ...group,
         items: group.items
           .filter((item) => {
+            if (item.id === 'audit-logs') {
+              return (
+                user.code === 'admindev' ||
+                ['admin', 'develop'].includes(user.role?.toLowerCase() || '')
+              );
+            }
             const isAdmin = ['admin', 'develop'].includes(user.role?.toLowerCase() || '');
             if (!isAdmin) {
               return [

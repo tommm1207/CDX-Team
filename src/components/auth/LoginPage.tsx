@@ -13,6 +13,7 @@ import {
 import { supabase } from '@/lib/supabase';
 import { Employee } from '@/types';
 import { isUUID, slugify } from '@/utils/helpers';
+import { logAudit } from '@/utils/auditLogger';
 import { LOGO_URL } from '@/constants/options';
 import { AppInstructionsModal } from '@/components/shared';
 
@@ -86,6 +87,12 @@ export const LoginPage = ({ onLogin }: { onLogin: (user: Employee) => void }) =>
         setError('Mã nhân viên hoặc mật khẩu không đúng');
         return;
       }
+
+      await logAudit(data as Employee, {
+        module: 'AUTH',
+        action: 'LOGIN',
+        description: `Đăng nhập hệ thống`,
+      });
 
       onLogin(data as Employee);
     } catch (err: any) {

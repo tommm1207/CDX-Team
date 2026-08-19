@@ -44,6 +44,7 @@ import { Employee } from '@/types';
 import { ErrorBoundary } from '@/components/shared';
 import { ContractModule } from '@/components/contracts/ContractModule';
 import { ChangePassword } from '@/components/auth/ChangePassword';
+import { AuditLogsPage } from '@/components/system/AuditLogsPage';
 
 interface AppRouterProps {
   currentPage: string;
@@ -368,6 +369,21 @@ export const AppRouter = ({
       return <DatabaseSetup onBack={goBack} />;
     case 'change-password':
       return <ChangePassword user={user} onBack={goBack} addToast={addToast} />;
+    case 'audit-logs':
+      if (
+        user.code !== 'admindev' &&
+        !['admin', 'develop'].includes(user.role?.toLowerCase() || '')
+      ) {
+        return (
+          <Dashboard
+            user={user}
+            onNavigate={navigateTo}
+            addToast={addToast}
+            pendingApprovals={pendingCount}
+          />
+        );
+      }
+      return <AuditLogsPage />;
     default:
       return (
         <div className="p-4 md:p-6 space-y-6">

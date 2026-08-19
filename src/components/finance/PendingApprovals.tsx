@@ -32,6 +32,7 @@ import { ToastType } from '@/components/shared';
 import { formatDate, formatNumber, formatCurrency } from '@/utils/format';
 import { Button } from '@/components/shared';
 import { SortButton, SortOption } from '@/components/shared';
+import { logAudit } from '@/utils/auditLogger';
 
 interface ConfirmState {
   slip: any;
@@ -170,7 +171,14 @@ export const PendingApprovals = ({
 
       if (error) throw error;
 
-      // Duyệt liên đới: khi duyệt phiếu nhập SX-, tự động duyệt phiếu xuất NVL liên quan
+      await logAudit(user, {
+        module: 'FINANCE',
+        action: action === 'approve' ? 'APPROVE' : 'REJECT',
+        description: `${action === 'approve' ? 'Duyệt' : 'Từ chối'} phiếu ${slip.type || ''}: ${slip.import_code || slip.export_code || slip.cost_code || slip.id}`,
+        recordId: slip.id,
+      });
+
+      // Dùyệt liên đới: khi duyệt phiếu nhập SX-, tự động duyệt phiếu xuất NVL liên quan
       if (
         action === 'approve' &&
         slip.table === 'stock_in' &&
@@ -209,6 +217,12 @@ export const PendingApprovals = ({
         .update({ status: 'Đã xóa' })
         .eq('id', selectedSlip.id);
       if (error) throw error;
+      await logAudit(user, {
+        module: 'FINANCE',
+        action: 'DELETE',
+        description: `Chuyển phiếu vào thùng rác: ${selectedSlip.import_code || selectedSlip.export_code || selectedSlip.cost_code || selectedSlip.id}`,
+        recordId: selectedSlip.id,
+      });
       setSlips((prev) =>
         prev.filter((s) => !(s.id === selectedSlip.id && s.table === selectedSlip.table)),
       );

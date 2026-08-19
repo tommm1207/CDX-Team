@@ -3,6 +3,7 @@ import { motion } from 'motion/react';
 import { Lock, Save, AlertCircle, CheckCircle } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { Employee } from '@/types';
+import { logAudit } from '@/utils/auditLogger';
 
 import { PageBreadcrumb, ToastType } from '@/components/shared';
 
@@ -57,7 +58,13 @@ export const ChangePassword = ({
 
       if (updateError) throw updateError;
 
-      addToast('Đổi mật khẩu thành công!', 'success');
+      await logAudit(user, {
+        module: 'AUTH',
+        action: 'UPDATE',
+        description: `Đổi mật khẩu tài khoản`,
+      });
+
+      addToast('Cập nhật mật khẩu thành công!', 'success');
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');

@@ -42,6 +42,7 @@ import { Button } from '@/components/shared';
 import { SortButton, SortOption } from '@/components/shared';
 import { PageToolbar, FilterPanel, FilterSearchInput, DateRangeFilter } from '@/components/shared';
 import { ReportImagePreviewModal } from '@/components/shared';
+import { logAudit } from '@/utils/auditLogger';
 
 // Helper: lấy tồn kho hiện tại (tính tới hôm nay) cho cặp (material, warehouse)
 const getCurrentStock = (matId: string, whId: string) =>
@@ -314,9 +315,22 @@ export const StockIn = ({
             notes: `Cập nhật từ phiếu ${payload.import_code} (Sửa ngày ${new Date().toLocaleDateString()})`,
           })
           .ilike('content', `%${payload.import_code}%`);
+
+        await logAudit(user, {
+          module: 'WAREHOUSE',
+          action: 'UPDATE',
+          description: `Cập nhật phiếu nhập kho: ${payload.import_code}`,
+          recordId: selectedSlip.id,
+        });
       } else {
         const { error } = await supabase.from('stock_in').insert([payload]);
         if (error) throw error;
+
+        await logAudit(user, {
+          module: 'WAREHOUSE',
+          action: 'CREATE',
+          description: `Tạo phiếu nhập kho: ${payload.import_code}`,
+        });
       }
 
       // Lưu lại số lượng cần vào warehouse_requirements nếu requiredQty > 0

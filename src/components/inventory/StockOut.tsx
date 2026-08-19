@@ -42,6 +42,7 @@ import { ExcelButton } from '@/components/shared';
 import { SortButton, SortOption } from '@/components/shared';
 
 import { SaveImageButton } from '@/components/shared';
+import { logAudit } from '@/utils/auditLogger';
 
 export const StockOut = ({
   user,
@@ -366,9 +367,22 @@ export const StockOut = ({
             notes: `Cập nhật từ phiếu ${payload.export_code} (Sửa ngày ${new Date().toLocaleDateString()})`,
           })
           .ilike('content', `%${payload.export_code || payload.id.slice(0, 8)}%`);
+
+        await logAudit(user, {
+          module: 'WAREHOUSE',
+          action: 'UPDATE',
+          description: `Cập nhật phiếu xuất kho: ${payload.export_code}`,
+          recordId: selectedSlip.id,
+        });
       } else {
         const { error } = await supabase.from('stock_out').insert([payload]);
         if (error) throw error;
+
+        await logAudit(user, {
+          module: 'WAREHOUSE',
+          action: 'CREATE',
+          description: `Tạo phiếu xuất kho: ${payload.export_code}`,
+        });
       }
 
       setShowModal(false);

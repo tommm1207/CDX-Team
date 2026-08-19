@@ -42,6 +42,7 @@ import { ExcelButton } from '@/components/shared';
 import { SortButton, SortOption } from '@/components/shared';
 import { SaveImageButton } from '@/components/shared';
 import { PrintTransferModal } from './PrintTransferModal';
+import { logAudit } from '@/utils/auditLogger';
 
 export const Transfer = ({
   user,
@@ -432,9 +433,22 @@ export const Transfer = ({
           .update(payload)
           .eq('id', selectedSlip.id);
         if (error) throw error;
+
+        await logAudit(user, {
+          module: 'WAREHOUSE',
+          action: 'UPDATE',
+          description: `Cập nhật phiếu luân chuyển: ${payload.transfer_code}`,
+          recordId: selectedSlip.id,
+        });
       } else {
         const { error } = await supabase.from('transfers').insert([payload]);
         if (error) throw error;
+
+        await logAudit(user, {
+          module: 'WAREHOUSE',
+          action: 'CREATE',
+          description: `Tạo phiếu luân chuyển: ${payload.transfer_code}`,
+        });
       }
 
       setShowModal(false);

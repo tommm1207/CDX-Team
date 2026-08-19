@@ -26,6 +26,7 @@ import { checkUsage } from '@/utils/dataIntegrity';
 import { generateSmartCode } from '@/utils/codeGenerator';
 import { CreatableSelect } from '@/components/shared';
 import { toLocalISODate } from '@/utils/format';
+import { logAudit } from '@/utils/auditLogger';
 
 export const HRRecords = ({
   user,
@@ -239,6 +240,14 @@ export const HRRecords = ({
         throw new Error(msg);
       }
 
+      const deletedEmployee = employees.find((e) => e.id === itemToDelete);
+      await logAudit(user, {
+        module: 'HR',
+        action: 'DELETE',
+        description: `Xóa vĩnh viễn nhân sự: ${deletedEmployee?.full_name || itemToDelete}`,
+        recordId: itemToDelete,
+      });
+
       if (addToast) addToast('Đã xóa vĩnh viễn nhân sự khỏi hệ thống', 'success');
       fetchEmployees();
       setShowDeleteModal(false);
@@ -267,6 +276,14 @@ export const HRRecords = ({
         .update({ status: 'Đã xóa' })
         .eq('id', itemToDelete);
       if (error) throw error;
+
+      await logAudit(user, {
+        module: 'HR',
+        action: 'DELETE',
+        description: `Chuyển nhân sự vào thùng rác: ${target?.full_name || itemToDelete}`,
+        recordId: itemToDelete,
+      });
+
       fetchEmployees();
       if (addToast) addToast('Đã chuyển nhân sự vào thùng rác', 'success');
       setShowDeleteModal(false);
@@ -304,9 +321,20 @@ export const HRRecords = ({
       if (isEditing) {
         const { error } = await supabase.from('users').update(dataToSubmit).eq('id', id);
         if (error) throw error;
+        await logAudit(user, {
+          module: 'HR',
+          action: 'UPDATE',
+          description: `Cập nhật hồ sơ nhân sự: ${dataToSubmit.full_name} (${dataToSubmit.code})`,
+          recordId: id,
+        });
       } else {
         const { error } = await supabase.from('users').insert([dataToSubmit]);
         if (error) throw error;
+        await logAudit(user, {
+          module: 'HR',
+          action: 'CREATE',
+          description: `Tạo mới nhân sự: ${dataToSubmit.full_name} (${dataToSubmit.code})`,
+        });
       }
 
       setShowModal(false);

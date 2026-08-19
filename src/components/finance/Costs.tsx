@@ -52,6 +52,7 @@ import { SortButton, SortOption } from '@/components/shared';
 import { generateSmartCode } from '@/utils/codeGenerator';
 import { checkUsage } from '@/utils/dataIntegrity';
 import { ReportPreviewModal } from '@/components/shared';
+import { logAudit } from '@/utils/auditLogger';
 
 const initialFormState = {
   date: toLocalISODate(),
@@ -379,9 +380,20 @@ export const Costs = ({
       if (isEditing && editingId) {
         const { error } = await supabase.from('costs').update(payload).eq('id', editingId);
         if (error) throw error;
+        await logAudit(user, {
+          module: 'FINANCE',
+          action: 'UPDATE',
+          description: `Cập nhật phiếu chi: ${payload.cost_code || editingId} - ${payload.content || ''}`,
+          recordId: editingId,
+        });
       } else {
         const { error } = await supabase.from('costs').insert([payload]);
         if (error) throw error;
+        await logAudit(user, {
+          module: 'FINANCE',
+          action: 'CREATE',
+          description: `Tạo phiếu chi: ${payload.cost_code || ''} - ${payload.content || ''}`,
+        });
       }
 
       setShowModal(false);
@@ -446,11 +458,18 @@ export const Costs = ({
     if (!itemToDelete) return;
     setSubmitting(true);
     try {
+      const target = costs.find((c: any) => c.id === itemToDelete);
       const { error } = await supabase
         .from('costs')
         .update({ status: 'Đã xóa' })
         .eq('id', itemToDelete);
       if (error) throw error;
+      await logAudit(user, {
+        module: 'FINANCE',
+        action: 'DELETE',
+        description: `Chuyển phiếu chi vào thùng rác: ${(target as any)?.cost_code || itemToDelete}`,
+        recordId: itemToDelete,
+      });
       fetchCosts();
       if (addToast) addToast('Đã chuyển vào thùng rác', 'success');
       setShowDeleteModal(false);

@@ -32,6 +32,7 @@ import { ExcelButton } from '@/components/shared';
 import { formatDate, formatNumber, formatCurrency, toLocalISODate } from '@/utils/format';
 import { isActiveWarehouse, getAvailableStock } from '@/utils/inventory';
 import { getAllowedWarehouses } from '@/utils/helpers';
+import { logAudit } from '@/utils/auditLogger';
 
 // ============================
 // Production Orders Component
@@ -254,6 +255,14 @@ export const ProductionOrders = ({
 
       if (addToast)
         addToast(`Lệnh sản xuất ${ma_lenh} đã được khởi tạo và đang chờ duyệt.`, 'success');
+
+      await logAudit(user, {
+        module: 'PRODUCTION',
+        action: 'CREATE',
+        description: `Tạo lệnh sản xuất: ${ma_lenh}`,
+        recordId: orderData.id,
+      });
+
       setShowModal(false);
       fetchOrders();
     } catch (err: any) {
@@ -293,6 +302,13 @@ export const ProductionOrders = ({
         if (addToast) addToast('Đã hủy lệnh sản xuất thành công', 'success');
       }
 
+      await logAudit(user, {
+        module: 'PRODUCTION',
+        action: 'DELETE',
+        description: `Hủy lệnh sản xuất: ${order.ma_lenh}`,
+        recordId: order.id,
+      });
+
       if (selectedOrder?.id === order.id) setSelectedOrder(null);
       fetchOrders();
     } catch (err: any) {
@@ -330,6 +346,14 @@ export const ProductionOrders = ({
 
       if (addToast)
         addToast(`Đã duyệt lệnh sản xuất ${order.ma_lenh}. Vật tư đã được trừ kho.`, 'success');
+
+      await logAudit(user, {
+        module: 'PRODUCTION',
+        action: 'APPROVE',
+        description: `Duyệt lệnh sản xuất: ${order.ma_lenh}`,
+        recordId: order.id,
+      });
+
       fetchOrders();
       if (selectedOrder?.id === order.id) {
         setSelectedOrder({ ...selectedOrder, trang_thai: 'dang_san_xuat' });

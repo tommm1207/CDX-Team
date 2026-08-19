@@ -22,6 +22,7 @@ import {
   BellRing,
   ClipboardList,
   Hammer,
+  Shield,
 } from 'lucide-react';
 
 export const getMenuGroups = (pendingCount: number) => [
@@ -78,6 +79,7 @@ export const getMenuGroups = (pendingCount: number) => [
       { id: 'notes', label: 'Note', icon: FileText },
       { id: 'reminders', label: 'Thông báo', icon: Bell },
       { id: 'trash', label: 'Thùng rác', icon: Trash2 },
+      { id: 'audit-logs', label: 'Nhật ký hệ thống', icon: Shield, adminOnly: true },
     ],
   },
   {
