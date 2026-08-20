@@ -37,7 +37,20 @@ export default function App() {
   const handleLogin = useCallback((u: Employee) => {
     setUser(u);
     localStorage.setItem('cdx_user', JSON.stringify(u));
+    sessionStorage.setItem('access_logged_' + u.id, 'true');
   }, []);
+
+  // Log access for persistent sessions automatically
+  useEffect(() => {
+    if (user && !sessionStorage.getItem('access_logged_' + user.id)) {
+      logAudit(user, {
+        module: 'AUTH',
+        action: 'LOGIN',
+        description: 'Truy cập ứng dụng',
+      });
+      sessionStorage.setItem('access_logged_' + user.id, 'true');
+    }
+  }, [user]);
 
   const handleLogout = useCallback(async () => {
     if (user) {
