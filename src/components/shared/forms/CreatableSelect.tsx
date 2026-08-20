@@ -105,12 +105,7 @@ export const CreatableSelect = ({
     return () => window.removeEventListener('scroll', handleScroll, true);
   }, [isOpen]);
 
-  const showDropdown =
-    isOpen &&
-    (filteredOptions.length > 0 ||
-      (allowCreate &&
-        searchTerm &&
-        !options.find((opt) => opt.name.toLowerCase() === searchTerm.toLowerCase())));
+  const showDropdown = isOpen;
 
   const dropdownContent = showDropdown ? (
     <motion.div
