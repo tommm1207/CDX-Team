@@ -130,8 +130,29 @@ export const CreatableSelect = ({
     >
       <div className="max-h-60 overflow-y-auto custom-scrollbar">
         {filteredOptions.length === 0 && !searchTerm && (
-          <div className="px-4 py-3 text-sm text-gray-500 italic text-center">
-            Không có dữ liệu. {allowCreate && 'Hãy gõ để thêm mới.'}
+          <div className="px-4 py-8 text-sm flex flex-col items-center justify-center text-center bg-gray-50/50 border-t border-gray-100">
+            <span className="text-gray-400 mb-3">Chưa có dữ liệu nào ở đây.</span>
+            {allowCreate && onCreate && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const newName = window.prompt('Nhập tên mục mới muốn tạo:');
+                  if (newName && newName.trim()) {
+                    onCreate(newName.trim());
+                    setIsOpen(false);
+                  }
+                }}
+                className="text-primary font-bold bg-primary/10 hover:bg-primary/20 px-4 py-2 rounded-xl inline-flex items-center gap-2 transition-colors shadow-sm"
+              >
+                <Plus size={16} /> Bấm vào đây để TẠO MỚI
+              </button>
+            )}
+            {allowCreate && onCreate && (
+              <span className="text-[10px] text-gray-400 mt-3 italic">
+                (Hoặc bạn có thể gõ trực tiếp lên ô phía trên)
+              </span>
+            )}
           </div>
         )}
         {filteredOptions.length === 0 && searchTerm && !allowCreate && (
