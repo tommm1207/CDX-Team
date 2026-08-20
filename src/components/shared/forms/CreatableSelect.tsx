@@ -107,65 +107,70 @@ export const CreatableSelect = ({
 
   const showDropdown = isOpen;
 
-  const dropdownContent = showDropdown ? (
-    <motion.div
-      initial={{ opacity: 0, y: -6 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -6 }}
-      transition={{ duration: 0.15 }}
-      id="creatable-select-portal"
-      style={{
-        position: 'fixed',
-        top: dropdownPos.top,
-        left: dropdownPos.left,
-        width: dropdownPos.width,
-        zIndex: 99999,
-      }}
-      className="bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden"
-    >
-      <div className="max-h-60 overflow-y-auto custom-scrollbar">
-        {filteredOptions.length === 0 && !searchTerm && (
-          <div className="px-4 py-3 text-sm text-gray-500 italic text-center">
-            Không có dữ liệu. {allowCreate && 'Hãy gõ để thêm mới.'}
-          </div>
-        )}
-        {filteredOptions.length === 0 && searchTerm && !allowCreate && (
-          <div className="px-4 py-3 text-sm text-gray-500 italic text-center">
-            Không tìm thấy kết quả.
-          </div>
-        )}
-        {filteredOptions.map((opt) => (
-          <div
-            key={opt.id}
-            onClick={() => {
-              onChange(opt.id);
-              setSearchTerm(opt.name);
-              setIsOpen(false);
-            }}
-            className={`px-4 py-2.5 text-sm cursor-pointer hover:bg-primary/5 transition-colors ${value === opt.id ? 'bg-primary/10 text-primary font-bold' : 'text-gray-700'}`}
-          >
-            {opt.name}
-          </div>
-        ))}
+  const dropdownContent = (
+    <AnimatePresence>
+      {showDropdown && (
+        <motion.div
+          key="creatable-select-dropdown"
+          initial={{ opacity: 0, y: -6 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -6 }}
+          transition={{ duration: 0.15 }}
+          id="creatable-select-portal"
+          style={{
+            position: 'fixed',
+            top: dropdownPos.top,
+            left: dropdownPos.left,
+            width: dropdownPos.width,
+            zIndex: 99999,
+          }}
+          className="bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden"
+        >
+          <div className="max-h-60 overflow-y-auto custom-scrollbar">
+            {filteredOptions.length === 0 && !searchTerm && (
+              <div className="px-4 py-3 text-sm text-gray-500 italic text-center">
+                Không có dữ liệu. {allowCreate && 'Hãy gõ để thêm mới.'}
+              </div>
+            )}
+            {filteredOptions.length === 0 && searchTerm && !allowCreate && (
+              <div className="px-4 py-3 text-sm text-gray-500 italic text-center">
+                Không tìm thấy kết quả.
+              </div>
+            )}
+            {filteredOptions.map((opt) => (
+              <div
+                key={opt.id}
+                onClick={() => {
+                  onChange(opt.id);
+                  setSearchTerm(opt.name);
+                  setIsOpen(false);
+                }}
+                className={`px-4 py-2.5 text-sm cursor-pointer hover:bg-primary/5 transition-colors ${value === opt.id ? 'bg-primary/10 text-primary font-bold' : 'text-gray-700'}`}
+              >
+                {opt.name}
+              </div>
+            ))}
 
-        {allowCreate &&
-          onCreate &&
-          searchTerm &&
-          !options.find((opt) => opt.name.toLowerCase() === searchTerm.toLowerCase()) && (
-            <div
-              onClick={() => {
-                onCreate(searchTerm);
-                setIsOpen(false);
-              }}
-              className="px-4 py-3 border-t border-gray-50 bg-gray-50/50 cursor-pointer hover:bg-primary/5 transition-colors flex items-center gap-2 text-primary font-bold text-sm"
-            >
-              <Plus size={16} />
-              <span>Thêm mới: "{searchTerm}"</span>
-            </div>
-          )}
-      </div>
-    </motion.div>
-  ) : null;
+            {allowCreate &&
+              onCreate &&
+              searchTerm &&
+              !options.find((opt) => opt.name.toLowerCase() === searchTerm.toLowerCase()) && (
+                <div
+                  onClick={() => {
+                    onCreate(searchTerm);
+                    setIsOpen(false);
+                  }}
+                  className="px-4 py-3 border-t border-gray-50 bg-gray-50/50 cursor-pointer hover:bg-primary/5 transition-colors flex items-center gap-2 text-primary font-bold text-sm"
+                >
+                  <Plus size={16} />
+                  <span>Thêm mới: "{searchTerm}"</span>
+                </div>
+              )}
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
 
   return (
     <div className={`relative ${className}`} ref={containerRef}>
@@ -217,9 +222,7 @@ export const CreatableSelect = ({
           </div>
         </div>
 
-        <AnimatePresence>
-          {dropdownContent && createPortal(dropdownContent, document.body)}
-        </AnimatePresence>
+        {createPortal(dropdownContent, document.body)}
       </div>
       {required && !value && (
         <input
