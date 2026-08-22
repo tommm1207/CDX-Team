@@ -20,6 +20,28 @@ interface AuditLogParams {
   metadata?: any;
 }
 
+export const getModuleFromTable = (table: string): AuditModule | string => {
+  const map: Record<string, AuditModule> = {
+    users: 'HR',
+    attendance: 'HR',
+    advances: 'HR',
+    allowances: 'HR',
+    costs: 'FINANCE',
+    cost_groups: 'FINANCE',
+    expense_settlements: 'FINANCE',
+    stock_in: 'WAREHOUSE',
+    stock_out: 'WAREHOUSE',
+    transfers: 'WAREHOUSE',
+    warehouses: 'WAREHOUSE',
+    materials: 'WAREHOUSE',
+    material_groups: 'WAREHOUSE',
+    lenh_san_xuat: 'PRODUCTION',
+    san_pham_bom: 'PRODUCTION',
+    construction_diaries: 'PRODUCTION',
+  };
+  return map[table] || 'SYSTEM';
+};
+
 // ---- IP & Location ----
 let cachedIp: string | null = null;
 let cachedLocation: string | null = null;
