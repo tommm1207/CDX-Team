@@ -1,0 +1,31 @@
+name: Daily Cloud Backup to Telegram
+
+on:
+  schedule:
+    # 16:00 UTC = 23:00 giờ Việt Nam (UTC+7) mỗi ngày
+    - cron: '0 16 * * *'
+  workflow_dispatch: # Cho phép bấm chạy thủ công trên GitHub Actions
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: |
+          npm install pg exceljs dotenv
+
+      - name: Run in-memory backup to Telegram
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL || secrets.VITE_DATABASE_URL }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN || '8938727777:AAEoArgt2HkwUFWc2-L00zIfaD-EPlQWgH8' }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID || '8347165964' }}
+        run: |
+          node scripts/daily_backup_telegram.mjs
