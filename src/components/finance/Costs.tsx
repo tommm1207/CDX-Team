@@ -196,18 +196,19 @@ export const Costs = ({
     if (data) setEmployees(data);
   };
 
-  const generateNextCostCode = async () => {
+  const generateNextCostCode = async (type: 'Thu' | 'Chi' = 'Chi') => {
     const today = new Date();
     const yyyy = today.getFullYear();
     const mm = String(today.getMonth() + 1).padStart(2, '0');
     const dd = String(today.getDate()).padStart(2, '0');
     const random = Math.floor(1000 + Math.random() * 9000);
-    return `CP${yyyy}${mm}${dd}-${random}`;
+    const prefix = type === 'Thu' ? 'THU' : 'CP';
+    return `${prefix}${yyyy}${mm}${dd}-${random}`;
   };
 
   useEffect(() => {
     if (initialAction === 'add') {
-      generateNextCostCode().then((code) => {
+      generateNextCostCode('Chi').then((code) => {
         setFormData((prev: any) => ({ ...prev, cost_code: code }));
       });
     }
@@ -233,7 +234,9 @@ export const Costs = ({
         query = query.in('warehouse_id', allowedWhIds);
       }
 
-      const { data, error } = await query.order('cost_code', { ascending: false });
+      const { data, error } = await query
+        .order('date', { ascending: false })
+        .order('created_at', { ascending: false });
 
       if (error) {
         setCosts([]);
@@ -353,6 +356,16 @@ export const Costs = ({
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+
+    if (!formData.warehouse_name || !formData.warehouse_name.trim()) {
+      if (addToast) addToast('Vui lòng chọn hoặc nhập tên kho', 'warning');
+      return;
+    }
+    if (!formData.total_amount || formData.total_amount <= 0) {
+      if (addToast) addToast('Vui lòng nhập thành tiền lớn hơn 0', 'warning');
+      return;
+    }
+
     setSubmitting(true);
     try {
       const warehouse_id = await ensureValueExists(
@@ -362,7 +375,10 @@ export const Costs = ({
         fetchWarehouses,
       );
 
-      const cost_code = isEditing ? formData.cost_code : await generateNextCostCode();
+      const isThu = formData.transaction_type === 'Thu';
+      const cost_code = isEditing
+        ? formData.cost_code
+        : await generateNextCostCode(formData.transaction_type);
 
       const selectedGroup = costGroups.find((g) => g.id === formData.cost_group_id);
       const selectedItem = costItems.find((i) => i.id === formData.cost_item_id);
@@ -371,32 +387,32 @@ export const Costs = ({
         selectedGroup?.name ||
         formData.cost_type ||
         (!isUUID(formData.cost_group_id) ? formData.cost_group_id : '') ||
-        '';
+        (isThu ? 'Khoản thu khác' : 'Chi phí khác');
 
       const content =
         selectedItem?.name ||
         formData.content ||
         (!isUUID(formData.cost_item_id) ? formData.cost_item_id : '') ||
-        formData.notes ||
-        '';
+        formData.notes?.trim() ||
+        (isThu ? 'Thu tiền' : 'Chi tiền');
 
       const payload = {
-        date: formData.date,
+        date: formData.date || toLocalISODate(),
         cost_code,
-        transaction_type: formData.transaction_type,
+        transaction_type: formData.transaction_type || 'Chi',
         cost_group_id: isUUID(formData.cost_group_id) ? formData.cost_group_id : null,
         cost_item_id: isUUID(formData.cost_item_id) ? formData.cost_item_id : null,
         cost_type,
         content,
-        warehouse_id,
+        warehouse_id: isUUID(warehouse_id) ? warehouse_id : null,
         material_id: isUUID(formData.material_id) ? formData.material_id : null,
         quantity: formData.quantity || 1,
         unit: formData.unit || 'Lần',
         unit_price: formData.unit_price || 0,
         total_amount: formData.total_amount,
         notes: isEditing
-          ? `[SỬA lúc ${new Date().toLocaleString('vi-VN')}] ${formData.notes.replace(/^\[SỬA lúc .*?\]\s*/, '')}`
-          : formData.notes,
+          ? `[SỬA lúc ${new Date().toLocaleString('vi-VN')}] ${formData.notes?.replace(/^\[SỬA lúc .*?\]\s*/, '') || ''}`
+          : formData.notes || '',
         employee_id: user.id,
         status: ['admin', 'develop'].includes(user.role?.toLowerCase() || '')
           ? isEditing
@@ -408,20 +424,28 @@ export const Costs = ({
       if (isEditing && editingId) {
         const { error } = await supabase.from('costs').update(payload).eq('id', editingId);
         if (error) throw error;
-        await logAudit(user, {
-          module: 'FINANCE',
-          action: 'UPDATE',
-          description: `Cập nhật phiếu chi: ${payload.cost_code || editingId} - ${payload.content || ''}`,
-          recordId: editingId,
-        });
+        try {
+          await logAudit(user, {
+            module: 'FINANCE',
+            action: 'UPDATE',
+            description: `Cập nhật phiếu ${isThu ? 'thu' : 'chi'}: ${payload.cost_code || editingId} - ${payload.content || ''}`,
+            recordId: editingId,
+          });
+        } catch (auditErr) {
+          console.warn('Audit log error (ignored):', auditErr);
+        }
       } else {
         const { error } = await supabase.from('costs').insert([payload]);
         if (error) throw error;
-        await logAudit(user, {
-          module: 'FINANCE',
-          action: 'CREATE',
-          description: `Tạo phiếu chi: ${payload.cost_code || ''} - ${payload.content || ''}`,
-        });
+        try {
+          await logAudit(user, {
+            module: 'FINANCE',
+            action: 'CREATE',
+            description: `Tạo phiếu ${isThu ? 'thu' : 'chi'}: ${payload.cost_code || ''} - ${payload.content || ''}`,
+          });
+        } catch (auditErr) {
+          console.warn('Audit log error (ignored):', auditErr);
+        }
       }
 
       setShowModal(false);
@@ -436,12 +460,17 @@ export const Costs = ({
       setFilterStartDate('');
       setFilterEndDate('');
       setFilterWarehouseId('');
-      fetchCosts();
+      await fetchCosts();
       fetchCostGroups();
       fetchCostItems();
-      if (addToast) addToast(isEditing ? 'Cập nhật thành công!' : 'Lưu thành công!', 'success');
+      if (addToast)
+        addToast(
+          isEditing ? 'Cập nhật thành công!' : `Tạo phiếu ${isThu ? 'thu' : 'chi'} thành công!`,
+          'success',
+        );
     } catch (err: any) {
-      if (addToast) addToast('Lỗi: ' + err.message, 'error');
+      console.error('Submit cost error:', err);
+      if (addToast) addToast('Lỗi: ' + (err.message || 'Không thể lưu'), 'error');
     } finally {
       setSubmitting(false);
     }
@@ -586,17 +615,37 @@ export const Costs = ({
       return match;
     })
     .sort((a, b) => {
-      if (sortBy === 'date' || sortBy === 'newest')
-        return new Date(b.date).getTime() - new Date(a.date).getTime();
       if (sortBy === 'price') return (b.total_amount || 0) - (a.total_amount || 0);
-      return 0;
+      const dateDiff = new Date(b.date).getTime() - new Date(a.date).getTime();
+      if (dateDiff !== 0) return dateDiff;
+      return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
     });
 
   return (
     <div className="p-4 md:p-6 space-y-6 pb-24">
       <div className="flex items-center justify-between gap-2 mb-4">
-        <PageBreadcrumb title="Quản lý Chi phí" onBack={onBack} />
+        <PageBreadcrumb title="Quản lý Thu & Chi" onBack={onBack} />
         <div className="flex items-center gap-1.5 justify-end flex-1 flex-shrink-0">
+          <Button
+            size="sm"
+            variant="primary"
+            icon={Plus}
+            onClick={async () => {
+              const nextCode = await generateNextCostCode('Chi');
+              setFormData({
+                ...initialFormState,
+                date: toLocalISODate(),
+                cost_code: nextCode,
+                warehouse_name: warehouses.length === 1 ? warehouses[0].name : '',
+              });
+              setIsEditing(false);
+              setEditingId(null);
+              setShowModal(true);
+            }}
+            className="shadow-sm shadow-primary/20 whitespace-nowrap text-xs font-bold"
+          >
+            + Thu / Chi
+          </Button>
           <SaveImageButton
             onClick={handleSaveTableImage}
             isCapturing={isCapturingTable}
@@ -911,10 +960,7 @@ export const Costs = ({
 
       <AnimatePresence>
         {showModal && (
-          <div
-            className="fixed inset-0 z-[200] flex items-center justify-center p-2 sm:p-4 bg-black/60 backdrop-blur-md overflow-hidden no-print"
-            onClick={() => setShowModal(false)}
-          >
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-2 sm:p-4 bg-black/60 backdrop-blur-md overflow-hidden no-print">
             <motion.div
               initial={{ y: 30, opacity: 0, scale: 0.95 }}
               animate={{ y: 0, opacity: 1, scale: 1 }}
@@ -928,10 +974,13 @@ export const Costs = ({
                     <Plus size={24} />
                   </div>
                   <h3 className="font-bold text-lg">
-                    {isEditing ? 'Sửa chi phí' : 'Nhập chi phí'}
+                    {isEditing
+                      ? `Sửa phiếu ${formData.transaction_type === 'Thu' ? 'thu' : 'chi'}`
+                      : `Nhập phiếu ${formData.transaction_type === 'Thu' ? 'thu' : 'chi'}`}
                   </h3>
                 </div>
                 <button
+                  type="button"
                   onClick={() => setShowModal(false)}
                   className="w-8 h-8 flex items-center justify-center bg-black/10 rounded-full hover:bg-black/20"
                 >
@@ -942,7 +991,7 @@ export const Costs = ({
                 <form onSubmit={handleSubmit} className="space-y-6">
                   <div className="md:col-span-2 hidden">
                     <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">
-                      Mã phiếu chi (Gợi ý)
+                      Mã phiếu {formData.transaction_type === 'Thu' ? 'thu' : 'chi'} (Gợi ý)
                     </label>
                     <div className="bg-primary/5 px-5 py-3.5 rounded-2xl border border-primary/10 text-sm font-black text-primary uppercase shadow-inner italic">
                       {formData.cost_code || 'Hệ thống tự tạo...'}
@@ -958,16 +1007,26 @@ export const Costs = ({
                           <button
                             key={type}
                             type="button"
-                            onClick={() => setFormData({ ...formData, transaction_type: type })}
+                            onClick={() => {
+                              const currentCode = formData.cost_code || '';
+                              const updatedCode = isEditing
+                                ? currentCode
+                                : currentCode.replace(/^(CP|THU)/, type === 'Thu' ? 'THU' : 'CP');
+                              setFormData({
+                                ...formData,
+                                transaction_type: type,
+                                cost_code: updatedCode,
+                              });
+                            }}
                             className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${
                               formData.transaction_type === type
                                 ? type === 'Thu'
-                                  ? 'bg-green-500 text-white shadow-sm'
-                                  : 'bg-red-500 text-white shadow-sm'
-                                : 'text-gray-400 hover:text-gray-600'
+                                  ? 'bg-green-600 text-white shadow-sm'
+                                  : 'bg-red-600 text-white shadow-sm'
+                                : 'text-gray-500 hover:text-gray-700'
                             }`}
                           >
-                            {type === 'Thu' ? '↓ THU' : '↑ CHI'}
+                            {type === 'Thu' ? '↓ THU TIỀN' : '↑ CHI TIỀN'}
                           </button>
                         ))}
                       </div>
@@ -988,19 +1047,24 @@ export const Costs = ({
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <CreatableSelect
-                      label="Nhóm chi phí"
-                      required
+                      label={
+                        formData.transaction_type === 'Thu' ? 'Hạng mục / Nhóm thu' : 'Nhóm chi phí'
+                      }
                       value={formData.cost_group_id}
                       options={costGroups}
                       onChange={(id) => {
                         setFormData({ ...formData, cost_group_id: id, cost_item_id: '' });
-                        fetchCostItems(id);
+                        if (id) fetchCostItems(id);
                       }}
                       onCreate={handleCreateGroup}
                       placeholder="Chọn hoặc nhập mới nhóm..."
                     />
                     <CreatableSelect
-                      label="Chi tiết chi phí"
+                      label={
+                        formData.transaction_type === 'Thu'
+                          ? 'Chi tiết khoản thu'
+                          : 'Chi tiết chi phí'
+                      }
                       value={formData.cost_item_id}
                       options={costItems}
                       onChange={(id) => {
@@ -1016,24 +1080,23 @@ export const Costs = ({
                       placeholder={
                         formData.cost_group_id
                           ? 'Chọn hoặc nhập mới chi tiết...'
-                          : 'Chọn nhóm trước hoặc để trống...'
+                          : 'Chọn hoặc gõ nội dung...'
                       }
-                      disabled={!formData.cost_group_id}
                     />
                   </div>
 
                   <CreatableSelect
-                    label="Tên kho"
+                    label="Tên kho / Công trình *"
                     value={formData.warehouse_name}
                     options={warehouses}
                     onChange={(val) => setFormData({ ...formData, warehouse_name: val })}
                     onCreate={(val) => setFormData({ ...formData, warehouse_name: val })}
-                    required
+                    placeholder="Chọn hoặc nhập tên kho..."
                   />
 
                   <div className="space-y-1">
                     <label className="text-[10px] font-bold text-gray-400 uppercase">
-                      Nội dung thu chi (Ghi chú tự do)
+                      Nội dung {formData.transaction_type === 'Thu' ? 'thu' : 'chi'} (Ghi chú tự do)
                     </label>
                     <textarea
                       value={formData.notes}
@@ -1061,7 +1124,6 @@ export const Costs = ({
                     label="Thành tiền *"
                     value={formData.total_amount}
                     onChange={(val) => setFormData({ ...formData, total_amount: val })}
-                    required
                   />
 
                   {/* Admin Status Toggle */}
@@ -1107,13 +1169,15 @@ export const Costs = ({
 
       <FAB
         onClick={async () => {
-          const nextCode = await generateNextCostCode();
+          const nextCode = await generateNextCostCode('Chi');
           setFormData({
             ...initialFormState,
             date: toLocalISODate(),
             cost_code: nextCode,
+            warehouse_name: warehouses.length === 1 ? warehouses[0].name : '',
           });
           setIsEditing(false);
+          setEditingId(null);
           setShowModal(true);
         }}
       />

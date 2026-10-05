@@ -120,7 +120,9 @@ export const CreatableSelect = ({
   };
 
   useEffect(() => {
-    const handleInteractionOutside = (event: any) => {
+    if (!isOpen) return;
+
+    const handleInteractionOutside = (event: MouseEvent | TouchEvent) => {
       if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
         const portalEl = document.getElementById(portalId);
         if (portalEl && portalEl.contains(event.target as Node)) return;
@@ -130,12 +132,12 @@ export const CreatableSelect = ({
       }
     };
     document.addEventListener('mousedown', handleInteractionOutside);
-    document.addEventListener('touchstart', handleInteractionOutside);
+    document.addEventListener('touchstart', handleInteractionOutside, { passive: true });
     return () => {
       document.removeEventListener('mousedown', handleInteractionOutside);
       document.removeEventListener('touchstart', handleInteractionOutside);
     };
-  }, [selectedOption, value, searchTerm, options, allowCreate]);
+  }, [isOpen, selectedOption, value, searchTerm, options, allowCreate, portalId]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
@@ -282,15 +284,6 @@ export const CreatableSelect = ({
 
         {createPortal(dropdownContent, document.body)}
       </div>
-      {required && !value && !disabled && (
-        <input
-          tabIndex={-1}
-          aria-hidden="true"
-          autoComplete="off"
-          style={{ opacity: 0, height: 0, width: 0, position: 'absolute', pointerEvents: 'none' }}
-          required
-        />
-      )}
     </div>
   );
 };
