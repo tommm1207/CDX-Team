@@ -142,8 +142,8 @@ export const LoginPage = ({ onLogin }: { onLogin: (user: Employee) => void }) =>
             />
           </div>
           <div className="text-center">
-            <h2 className="text-primary font-black text-xl tracking-widest uppercase">
-              QUẢN LÝ KHO CDX
+            <h2 className="text-primary font-black text-lg sm:text-xl tracking-wider uppercase text-center">
+              HỆ THỐNG QUẢN TRỊ NGUỒN LỰC THI CÔNG
             </h2>
             <p className="text-[10px] text-gray-400 font-bold tracking-widest uppercase mt-1">
               Hệ thống quản lý nội bộ

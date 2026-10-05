@@ -17,9 +17,9 @@ export default defineConfig(({mode}) => {
           maximumFileSizeToCacheInBytes: 3 * 1024 * 1024, // 3MB (after splitting, chunks are smaller)
         },
         manifest: {
-          name: 'Quản Lý Thi Công CDX',
-          short_name: 'CDX Admin',
-          description: 'Hệ thống Quản lý Kho & Nhân sự CDX',
+          name: 'Hệ thống Quản trị Nguồn lực Thi công CDX',
+          short_name: 'CDX Nguồn Lực',
+          description: 'Hệ thống Quản trị Nguồn lực Thi công CDX',
           theme_color: '#2D5A27',
           background_color: '#ffffff',
           display: 'standalone',

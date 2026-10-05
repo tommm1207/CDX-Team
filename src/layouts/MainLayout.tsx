@@ -59,7 +59,9 @@ export const MainLayout = ({
               <div className="w-8 h-8 bg-white rounded-md flex items-center justify-center p-1 shadow-sm">
                 <img src={LOGO_URL} alt="Logo" className="w-full h-full object-contain" />
               </div>
-              <h1 className="font-bold text-sm tracking-wide hidden sm:block">QUẢN LÝ KHO CDX</h1>
+              <h1 className="font-bold text-xs sm:text-sm tracking-wide hidden sm:block">
+                HỆ THỐNG QUẢN TRỊ NGUỒN LỰC THI CÔNG
+              </h1>
             </button>
 
             {/* Menu Hint - Subtle Pulsating Dot & Text label */}

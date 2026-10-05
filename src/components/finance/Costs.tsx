@@ -962,18 +962,19 @@ export const Costs = ({
         {showModal && (
           <div className="fixed inset-0 z-[200] flex items-center justify-center p-2 sm:p-4 bg-black/60 backdrop-blur-md overflow-hidden no-print">
             <motion.div
-              initial={{ y: 30, opacity: 0, scale: 0.95 }}
+              initial={{ y: 20, opacity: 0, scale: 0.98 }}
               animate={{ y: 0, opacity: 1, scale: 1 }}
-              exit={{ y: 30, opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-[1.5rem] md:rounded-[2.5rem] shadow-2xl w-full max-w-2xl max-h-[96dvh] md:max-h-[85vh] overflow-hidden flex flex-col z-10"
+              exit={{ y: 20, opacity: 0, scale: 0.98 }}
+              className="bg-white rounded-2xl md:rounded-[2rem] shadow-2xl w-full max-w-xl max-h-[96dvh] md:max-h-[88vh] overflow-hidden flex flex-col z-10 my-auto"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="bg-primary p-5 sm:p-6 text-white flex justify-between items-center flex-shrink-0">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
-                    <Plus size={24} />
+              {/* Header cố định */}
+              <div className="bg-primary px-4 py-2.5 sm:py-3 text-white flex justify-between items-center flex-shrink-0">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
+                    <Plus size={18} />
                   </div>
-                  <h3 className="font-bold text-lg">
+                  <h3 className="font-bold text-sm sm:text-base">
                     {isEditing
                       ? `Sửa phiếu ${formData.transaction_type === 'Thu' ? 'thu' : 'chi'}`
                       : `Nhập phiếu ${formData.transaction_type === 'Thu' ? 'thu' : 'chi'}`}
@@ -982,13 +983,16 @@ export const Costs = ({
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="w-8 h-8 flex items-center justify-center bg-black/10 rounded-full hover:bg-black/20"
+                  className="w-7 h-7 flex items-center justify-center bg-black/10 rounded-full hover:bg-black/20 text-white"
                 >
-                  <X size={20} />
+                  <X size={18} />
                 </button>
               </div>
-              <div className="flex-1 overflow-y-auto p-4 sm:p-6 scrollbar-hide">
-                <form onSubmit={handleSubmit} className="space-y-6">
+
+              {/* Form chứa Body và Footer cố định */}
+              <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
+                {/* Form fields body - gọn gàng trên 1 trang */}
+                <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-2.5 scrollbar-hide">
                   <div className="md:col-span-2 hidden">
                     <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">
                       Mã phiếu {formData.transaction_type === 'Thu' ? 'thu' : 'chi'} (Gợi ý)
@@ -997,12 +1001,14 @@ export const Costs = ({
                       {formData.cost_code || 'Hệ thống tự tạo...'}
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
+
+                  {/* Hàng 1: Loại giao dịch + Ngày */}
+                  <div className="grid grid-cols-2 gap-2">
                     <div className="space-y-1">
                       <label className="text-[10px] font-bold text-gray-400 uppercase">
                         Loại giao dịch *
                       </label>
-                      <div className="flex bg-gray-100 p-1 rounded-xl gap-1">
+                      <div className="flex bg-gray-100 p-0.5 rounded-lg gap-1">
                         {(['Thu', 'Chi'] as const).map((type) => (
                           <button
                             key={type}
@@ -1018,7 +1024,7 @@ export const Costs = ({
                                 cost_code: updatedCode,
                               });
                             }}
-                            className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                            className={`flex-1 py-1 text-xs font-bold rounded-md transition-all ${
                               formData.transaction_type === type
                                 ? type === 'Thu'
                                   ? 'bg-green-600 text-white shadow-sm'
@@ -1031,6 +1037,7 @@ export const Costs = ({
                         ))}
                       </div>
                     </div>
+
                     <div className="space-y-1">
                       <label className="text-[10px] font-bold text-gray-400 uppercase">
                         Ngày *
@@ -1040,12 +1047,13 @@ export const Costs = ({
                         required
                         value={formData.date}
                         onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                        className="w-full px-4 py-2 rounded-xl border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-primary/20"
+                        className="w-full px-3 py-1.5 rounded-xl border border-gray-200 text-xs outline-none focus:ring-2 focus:ring-primary/20 bg-white"
                       />
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Hàng 2: Nhóm + Chi tiết (trên cùng 1 dòng 2 cột trên điện thoại) */}
+                  <div className="grid grid-cols-2 gap-2">
                     <CreatableSelect
                       label={
                         formData.transaction_type === 'Thu' ? 'Hạng mục / Nhóm thu' : 'Nhóm chi phí'
@@ -1057,7 +1065,8 @@ export const Costs = ({
                         if (id) fetchCostItems(id);
                       }}
                       onCreate={handleCreateGroup}
-                      placeholder="Chọn hoặc nhập mới nhóm..."
+                      placeholder="Chọn hoặc nhập nhóm..."
+                      selectClassName="w-full px-2.5 py-1.5 rounded-xl border border-gray-200 text-xs outline-none focus:ring-2 focus:ring-primary/20 bg-white"
                     />
                     <CreatableSelect
                       label={
@@ -1079,12 +1088,14 @@ export const Costs = ({
                       onCreate={handleCreateItem}
                       placeholder={
                         formData.cost_group_id
-                          ? 'Chọn hoặc nhập mới chi tiết...'
+                          ? 'Chọn hoặc nhập chi tiết...'
                           : 'Chọn hoặc gõ nội dung...'
                       }
+                      selectClassName="w-full px-2.5 py-1.5 rounded-xl border border-gray-200 text-xs outline-none focus:ring-2 focus:ring-primary/20 bg-white"
                     />
                   </div>
 
+                  {/* Hàng 3: Tên kho / Công trình */}
                   <CreatableSelect
                     label="Tên kho / Công trình *"
                     value={formData.warehouse_name}
@@ -1092,50 +1103,67 @@ export const Costs = ({
                     onChange={(val) => setFormData({ ...formData, warehouse_name: val })}
                     onCreate={(val) => setFormData({ ...formData, warehouse_name: val })}
                     placeholder="Chọn hoặc nhập tên kho..."
+                    selectClassName="w-full px-3 py-1.5 rounded-xl border border-gray-200 text-xs outline-none focus:ring-2 focus:ring-primary/20 bg-white"
                   />
 
+                  {/* Hàng 4: Nội dung thu / chi (Ghi chú tự do) - 2 dòng gọn gàng tiết kiệm diện tích */}
                   <div className="space-y-1">
                     <label className="text-[10px] font-bold text-gray-400 uppercase">
                       Nội dung {formData.transaction_type === 'Thu' ? 'thu' : 'chi'} (Ghi chú tự do)
                     </label>
                     <textarea
+                      rows={2}
                       value={formData.notes}
                       onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                      className="w-full px-4 py-2 rounded-xl border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-primary/20 min-h-[80px]"
+                      className="w-full px-3 py-1.5 rounded-xl border border-gray-200 text-xs outline-none focus:ring-2 focus:ring-primary/20 resize-none h-[48px]"
                       placeholder="Gõ nội dung chi tiết tại đây..."
                     />
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <NumericInput
-                      label="Số lượng"
-                      value={formData.quantity}
-                      onChange={(val) => setFormData({ ...formData, quantity: val })}
-                    />
-                    <CreatableSelect
-                      label="Đơn vị tính"
-                      value={formData.unit}
-                      options={units}
-                      onChange={(val) => setFormData({ ...formData, unit: val })}
-                      onCreate={(val) => setFormData({ ...formData, unit: val })}
-                    />
+
+                  {/* Hàng 5: BỐ CỤC 3 TRƯỜNG TRÊN 1 DÒNG: 1 là Thành tiền, 2 là Số lượng, 3 là Đơn vị tính */}
+                  <div className="grid grid-cols-12 gap-2 items-end">
+                    <div className="col-span-6">
+                      <NumericInput
+                        label="1. Thành tiền *"
+                        value={formData.total_amount}
+                        onChange={(val) => setFormData({ ...formData, total_amount: val })}
+                        placeholder="0"
+                        inputClassName="w-full px-2.5 py-1.5 rounded-xl border border-gray-200 text-xs sm:text-sm font-bold text-primary outline-none focus:ring-2 focus:ring-primary/20"
+                      />
+                    </div>
+                    <div className="col-span-3">
+                      <NumericInput
+                        label="2. Số lượng"
+                        value={formData.quantity}
+                        onChange={(val) => setFormData({ ...formData, quantity: val })}
+                        placeholder="1"
+                        inputClassName="w-full px-2 py-1.5 rounded-xl border border-gray-200 text-xs sm:text-sm font-bold text-center outline-none focus:ring-2 focus:ring-primary/20"
+                      />
+                    </div>
+                    <div className="col-span-3">
+                      <CreatableSelect
+                        compact={true}
+                        label="3. ĐVT"
+                        value={formData.unit}
+                        options={units}
+                        onChange={(val) => setFormData({ ...formData, unit: val })}
+                        onCreate={(val) => setFormData({ ...formData, unit: val })}
+                        placeholder="ĐVT"
+                        selectClassName="w-full py-1.5 rounded-xl border border-gray-200 text-xs font-semibold outline-none focus:ring-2 focus:ring-primary/20 bg-white"
+                      />
+                    </div>
                   </div>
 
-                  <NumericInput
-                    label="Thành tiền *"
-                    value={formData.total_amount}
-                    onChange={(val) => setFormData({ ...formData, total_amount: val })}
-                  />
-
-                  {/* Admin Status Toggle */}
+                  {/* Admin Status Toggle - Gọn gàng */}
                   {['admin', 'develop'].includes(user.role?.toLowerCase() || '') && (
-                    <div className="space-y-1 mb-4">
-                      <label className="text-[10px] font-bold text-gray-400 uppercase">
+                    <div className="flex items-center justify-between gap-2 bg-amber-50/60 px-3 py-1 rounded-xl border border-amber-200/50">
+                      <label className="text-[10px] font-bold text-amber-800 uppercase">
                         Trạng thái duyệt
                       </label>
                       <select
                         value={formData.status}
                         onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                        className="w-full px-4 py-2 rounded-xl border border-gray-200 text-sm font-bold bg-amber-50 text-amber-700 outline-none focus:ring-2 focus:ring-amber-200"
+                        className="px-2 py-0.5 rounded-lg border border-amber-300 text-xs font-bold bg-white text-amber-800 outline-none focus:ring-2 focus:ring-amber-200"
                       >
                         <option value="Chờ duyệt">Chờ duyệt</option>
                         <option value="Đã duyệt">Đã duyệt</option>
@@ -1143,25 +1171,32 @@ export const Costs = ({
                       </select>
                     </div>
                   )}
+                </div>
 
-                  <div className="mt-8 flex justify-end gap-3 flex-shrink-0">
-                    <button
-                      type="button"
-                      onClick={() => setShowModal(false)}
-                      className="px-6 py-2 rounded-xl text-sm font-bold text-gray-500 hover:bg-gray-100 transition-colors"
-                    >
-                      Hủy
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={submitting}
-                      className="px-8 py-2 rounded-xl text-sm font-bold bg-primary text-white hover:bg-primary-hover transition-all shadow-lg shadow-primary/20 disabled:opacity-50 active:scale-95"
-                    >
-                      {submitting ? 'Đang xử lý...' : isEditing ? 'Cập nhật' : 'Xác nhận tạo'}
-                    </button>
-                  </div>
-                </form>
-              </div>
+                {/* Footer CỐ ĐỊNH Ở ĐÁY MODAL - KHÔNG BAO GIỜ PHẢI CUỘN XUỐNG TÌM */}
+                <div className="p-2.5 sm:p-3 bg-gray-50/90 border-t border-gray-100 flex items-center justify-end gap-2 flex-shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setShowModal(false)}
+                    className="px-4 py-2 rounded-xl text-xs sm:text-sm font-bold text-gray-500 hover:bg-gray-200 transition-colors"
+                  >
+                    Hủy
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={submitting}
+                    className="px-5 py-2 rounded-xl text-xs sm:text-sm font-bold bg-primary text-white hover:bg-primary-hover transition-all shadow-md shadow-primary/20 disabled:opacity-50 active:scale-95"
+                  >
+                    {submitting
+                      ? 'Đang xử lý...'
+                      : isEditing
+                        ? 'Cập nhật'
+                        : formData.transaction_type === 'Thu'
+                          ? 'Tạo phiếu thu'
+                          : 'Tạo phiếu chi'}
+                  </button>
+                </div>
+              </form>
             </motion.div>
           </div>
         )}

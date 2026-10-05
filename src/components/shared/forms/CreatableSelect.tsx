@@ -17,6 +17,7 @@ export const CreatableSelect = ({
   labelClassName = 'text-[10px] font-bold text-gray-400 uppercase',
   selectClassName = 'w-full px-4 py-2 rounded-xl border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-primary/20 bg-white',
   allowCreate = true,
+  compact = false,
 }: {
   label?: string;
   value: string;
@@ -27,6 +28,7 @@ export const CreatableSelect = ({
   required?: boolean;
   disabled?: boolean;
   allowCreate?: boolean;
+  compact?: boolean;
   className?: string;
   labelClassName?: string;
   selectClassName?: string;
@@ -259,9 +261,11 @@ export const CreatableSelect = ({
               if (e.target.value === '') onChange('');
             }}
             onFocus={() => !disabled && setIsOpen(true)}
-            className={`${selectClassName} pr-14 ${disabled ? 'bg-gray-100 cursor-not-allowed opacity-70' : ''}`}
+            className={`${selectClassName} ${compact ? 'pr-6 pl-2 text-xs' : 'pr-14'} ${disabled ? 'bg-gray-100 cursor-not-allowed opacity-70' : ''}`}
           />
-          <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-0.5 bg-white pl-1">
+          <div
+            className={`absolute ${compact ? 'right-1.5' : 'right-3'} top-1/2 -translate-y-1/2 flex items-center ${compact ? 'gap-0 bg-transparent' : 'gap-0.5 bg-white pl-1'}`}
+          >
             {searchTerm && !disabled && (
               <button
                 type="button"
@@ -270,13 +274,13 @@ export const CreatableSelect = ({
                   setSearchTerm('');
                   onChange('');
                 }}
-                className="p-1.5 hover:bg-gray-100 rounded-full text-gray-400 cursor-pointer z-10"
+                className={`${compact ? 'p-0.5' : 'p-1.5'} hover:bg-gray-100 rounded-full text-gray-400 cursor-pointer z-10`}
               >
-                <X size={12} />
+                <X size={compact ? 10 : 12} />
               </button>
             )}
             <ChevronDown
-              size={16}
+              size={compact ? 12 : 16}
               className={`text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`}
             />
           </div>
