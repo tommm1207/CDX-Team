@@ -4,8 +4,8 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '8938727777:AAEoArgt2HkwUFWc2-L00zIfaD-EPlQWgH8';
-const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID || '8347165964';
+const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 
 // ─── Brand Colors ──────────────────────────────────────────────────────────────
 const CDX_GREEN = '2D5A27';

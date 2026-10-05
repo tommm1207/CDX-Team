@@ -25,7 +25,7 @@ jobs:
       - name: Run in-memory backup to Telegram
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL || secrets.VITE_DATABASE_URL }}
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN || '8938727777:AAEoArgt2HkwUFWc2-L00zIfaD-EPlQWgH8' }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID || '8347165964' }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
           node scripts/daily_backup_telegram.mjs
