@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useLayoutEffect } from 'react';
+import { useState, useEffect, useRef, useLayoutEffect, useId } from 'react';
 import { createPortal } from 'react-dom';
 import { X, ChevronDown, Plus } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -35,7 +35,9 @@ export const CreatableSelect = ({
   const [searchTerm, setSearchTerm] = useState('');
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0, width: 0 });
+  const rawId = useId();
+  const portalId = `creatable-portal-${rawId.replace(/:/g, '')}`;
+  const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0, width: 0, isAbove: false });
 
   const selectedOption = options.find((opt) => opt.id === value);
 
@@ -46,7 +48,7 @@ export const CreatableSelect = ({
         setSearchTerm(selectedOption.name);
       } else if (allowCreate && value && !isUUID(value)) {
         setSearchTerm(value);
-      } else {
+      } else if (!value) {
         setSearchTerm('');
       }
     }
@@ -56,54 +58,108 @@ export const CreatableSelect = ({
     opt.name.toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
-  // Recalculate dropdown position when open
-  useLayoutEffect(() => {
-    if (isOpen && inputRef.current) {
+  const updateDropdownPos = () => {
+    if (inputRef.current) {
       const rect = inputRef.current.getBoundingClientRect();
+      const dropdownMaxHeight = 240;
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const shouldRenderAbove = spaceBelow < dropdownMaxHeight && rect.top > dropdownMaxHeight;
+
       setDropdownPos({
-        top: rect.bottom + 4,
-        left: rect.left,
-        width: rect.width,
+        top: shouldRenderAbove ? Math.max(8, rect.top - dropdownMaxHeight - 4) : rect.bottom + 4,
+        left: Math.max(8, Math.min(rect.left, window.innerWidth - rect.width - 8)),
+        width: Math.min(rect.width, window.innerWidth - 16),
+        isAbove: shouldRenderAbove,
       });
+    }
+  };
+
+  useLayoutEffect(() => {
+    if (isOpen) {
+      updateDropdownPos();
     }
   }, [isOpen, searchTerm]);
 
   useEffect(() => {
-    const handleClickOutside = (event: any) => {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        // Also check if clicked element is inside our portal dropdown
-        const portalEl = document.getElementById('creatable-select-portal');
-        if (portalEl && portalEl.contains(event.target as Node)) return;
-        setIsOpen(false);
-        if (selectedOption) {
-          setSearchTerm(selectedOption.name);
-        } else if (allowCreate && value && !isUUID(value)) {
-          setSearchTerm(value);
-        } else {
-          setSearchTerm('');
-        }
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [selectedOption, value]);
-
-  // Close on scroll of any ancestor (helps with modals)
-  useEffect(() => {
     if (!isOpen) return;
-    const handleScroll = () => {
-      if (inputRef.current) {
-        const rect = inputRef.current.getBoundingClientRect();
-        setDropdownPos({
-          top: rect.bottom + 4,
-          left: rect.left,
-          width: rect.width,
-        });
+    const handleScrollOrResize = () => {
+      updateDropdownPos();
+    };
+    window.addEventListener('scroll', handleScrollOrResize, true);
+    window.addEventListener('resize', handleScrollOrResize);
+    return () => {
+      window.removeEventListener('scroll', handleScrollOrResize, true);
+      window.removeEventListener('resize', handleScrollOrResize);
+    };
+  }, [isOpen]);
+
+  // Commit text if user typed something and clicked outside or pressed enter
+  const commitSearchTerm = (text: string) => {
+    const trimmed = text.trim();
+    if (!trimmed) {
+      onChange('');
+      setSearchTerm('');
+      return;
+    }
+
+    const match = options.find((opt) => opt.name.toLowerCase() === trimmed.toLowerCase());
+    if (match) {
+      onChange(match.id);
+      setSearchTerm(match.name);
+    } else if (allowCreate) {
+      if (onCreate) {
+        onCreate(trimmed);
+      } else {
+        onChange(trimmed);
+      }
+    } else if (selectedOption) {
+      setSearchTerm(selectedOption.name);
+    } else {
+      setSearchTerm('');
+    }
+  };
+
+  useEffect(() => {
+    const handleInteractionOutside = (event: any) => {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        const portalEl = document.getElementById(portalId);
+        if (portalEl && portalEl.contains(event.target as Node)) return;
+
+        setIsOpen(false);
+        commitSearchTerm(searchTerm);
       }
     };
-    window.addEventListener('scroll', handleScroll, true);
-    return () => window.removeEventListener('scroll', handleScroll, true);
-  }, [isOpen]);
+    document.addEventListener('mousedown', handleInteractionOutside);
+    document.addEventListener('touchstart', handleInteractionOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleInteractionOutside);
+      document.removeEventListener('touchstart', handleInteractionOutside);
+    };
+  }, [selectedOption, value, searchTerm, options, allowCreate]);
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const trimmed = searchTerm.trim();
+      if (!trimmed) return;
+
+      const exactMatch = options.find((opt) => opt.name.toLowerCase() === trimmed.toLowerCase());
+      if (exactMatch) {
+        onChange(exactMatch.id);
+        setSearchTerm(exactMatch.name);
+        setIsOpen(false);
+      } else if (filteredOptions.length > 0) {
+        onChange(filteredOptions[0].id);
+        setSearchTerm(filteredOptions[0].name);
+        setIsOpen(false);
+      } else if (allowCreate) {
+        commitSearchTerm(trimmed);
+        setIsOpen(false);
+      }
+    } else if (e.key === 'Escape') {
+      setIsOpen(false);
+    }
+  };
 
   const showDropdown = isOpen;
 
@@ -112,11 +168,11 @@ export const CreatableSelect = ({
       {showDropdown && (
         <motion.div
           key="creatable-select-dropdown"
-          initial={{ opacity: 0, y: -6 }}
+          initial={{ opacity: 0, y: dropdownPos.isAbove ? 6 : -6 }}
           animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -6 }}
+          exit={{ opacity: 0, y: dropdownPos.isAbove ? 6 : -6 }}
           transition={{ duration: 0.15 }}
-          id="creatable-select-portal"
+          id={portalId}
           style={{
             position: 'fixed',
             top: dropdownPos.top,
@@ -124,7 +180,7 @@ export const CreatableSelect = ({
             width: dropdownPos.width,
             zIndex: 99999,
           }}
-          className="bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden"
+          className="bg-white rounded-xl shadow-2xl border border-gray-100 overflow-hidden"
         >
           <div className="max-h-60 overflow-y-auto custom-scrollbar">
             {filteredOptions.length === 0 && !searchTerm && (
@@ -140,6 +196,7 @@ export const CreatableSelect = ({
             {filteredOptions.map((opt) => (
               <div
                 key={opt.id}
+                onMouseDown={(e) => e.preventDefault()}
                 onClick={() => {
                   onChange(opt.id);
                   setSearchTerm(opt.name);
@@ -152,12 +209,12 @@ export const CreatableSelect = ({
             ))}
 
             {allowCreate &&
-              onCreate &&
               searchTerm &&
               !options.find((opt) => opt.name.toLowerCase() === searchTerm.toLowerCase()) && (
                 <div
+                  onMouseDown={(e) => e.preventDefault()}
                   onClick={() => {
-                    onCreate(searchTerm);
+                    commitSearchTerm(searchTerm);
                     setIsOpen(false);
                   }}
                   className="px-4 py-3 border-t border-gray-50 bg-gray-50/50 cursor-pointer hover:bg-primary/5 transition-colors flex items-center gap-2 text-primary font-bold text-sm"
@@ -193,6 +250,7 @@ export const CreatableSelect = ({
             spellCheck="false"
             data-1p-ignore
             data-lpignore="true"
+            onKeyDown={handleKeyDown}
             onChange={(e) => {
               setSearchTerm(e.target.value);
               setIsOpen(true);
@@ -202,7 +260,7 @@ export const CreatableSelect = ({
             className={`${selectClassName} pr-14 ${disabled ? 'bg-gray-100 cursor-not-allowed opacity-70' : ''}`}
           />
           <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-0.5 bg-white pl-1">
-            {searchTerm && (
+            {searchTerm && !disabled && (
               <button
                 type="button"
                 onClick={(e) => {
@@ -224,11 +282,12 @@ export const CreatableSelect = ({
 
         {createPortal(dropdownContent, document.body)}
       </div>
-      {required && !value && (
+      {required && !value && !disabled && (
         <input
           tabIndex={-1}
+          aria-hidden="true"
           autoComplete="off"
-          style={{ opacity: 0, height: 0, width: 0, position: 'absolute' }}
+          style={{ opacity: 0, height: 0, width: 0, position: 'absolute', pointerEvents: 'none' }}
           required
         />
       )}

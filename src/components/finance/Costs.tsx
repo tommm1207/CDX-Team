@@ -63,6 +63,7 @@ const initialFormState = {
   cost_item_id: '',
   cost_type: '', // for backward compatibility/display
   content: '', // for backward compatibility/display
+  warehouse_name: '',
   warehouse_id: '',
   material_id: null,
   quantity: 1,
@@ -272,41 +273,52 @@ export const Costs = ({
   };
 
   const handleCreateGroup = async (name: string) => {
+    if (!name || !name.trim()) return;
+    const trimmed = name.trim();
     const code = `CG${(costGroups.length + 1).toString().padStart(3, '0')}`;
     const { data, error } = await supabase
       .from('cost_groups')
-      .insert([{ name, code, status: 'Hoạt động' }])
+      .insert([{ name: trimmed, code, status: 'Hoạt động' }])
       .select();
     if (error) {
-      if (addToast) addToast('Lỗi tạo nhóm: ' + error.message, 'error');
+      console.warn('Fallback saving group locally:', error.message);
+      setFormData((prev: any) => ({ ...prev, cost_group_id: trimmed, cost_type: trimmed }));
       return;
     }
     if (data && data[0]) {
       setCostGroups((prev) => [...prev, data[0]]);
-      setFormData((prev: any) => ({ ...prev, cost_group_id: data[0].id, cost_item_id: '' }));
+      setFormData((prev: any) => ({
+        ...prev,
+        cost_group_id: data[0].id,
+        cost_type: data[0].name,
+        cost_item_id: '',
+      }));
       fetchCostItems(data[0].id);
-      if (addToast) addToast(`Đã thêm nhóm mới: ${name}`, 'success');
+      if (addToast) addToast(`Đã thêm nhóm mới: ${trimmed}`, 'success');
     }
   };
 
   const handleCreateItem = async (name: string) => {
+    if (!name || !name.trim()) return;
+    const trimmed = name.trim();
     if (!formData.cost_group_id) {
-      if (addToast) addToast('Vui lòng chọn nhóm trước khi thêm chi tiết', 'warning');
+      setFormData((prev: any) => ({ ...prev, cost_item_id: trimmed, content: trimmed }));
       return;
     }
     const code = `CI${(costItems.length + 1).toString().padStart(3, '0')}`;
     const { data, error } = await supabase
       .from('cost_items')
-      .insert([{ name, code, group_id: formData.cost_group_id, status: 'Hoạt động' }])
+      .insert([{ name: trimmed, code, group_id: formData.cost_group_id, status: 'Hoạt động' }])
       .select();
     if (error) {
-      if (addToast) addToast('Lỗi tạo chi tiết: ' + error.message, 'error');
+      console.warn('Fallback saving item locally:', error.message);
+      setFormData((prev: any) => ({ ...prev, cost_item_id: trimmed, content: trimmed }));
       return;
     }
     if (data && data[0]) {
       setCostItems((prev) => [...prev, data[0]]);
-      setFormData((prev: any) => ({ ...prev, cost_item_id: data[0].id }));
-      if (addToast) addToast(`Đã thêm chi tiết mới: ${name}`, 'success');
+      setFormData((prev: any) => ({ ...prev, cost_item_id: data[0].id, content: data[0].name }));
+      if (addToast) addToast(`Đã thêm chi tiết mới: ${trimmed}`, 'success');
     }
   };
 
@@ -352,18 +364,34 @@ export const Costs = ({
 
       const cost_code = isEditing ? formData.cost_code : await generateNextCostCode();
 
+      const selectedGroup = costGroups.find((g) => g.id === formData.cost_group_id);
+      const selectedItem = costItems.find((i) => i.id === formData.cost_item_id);
+
+      const cost_type =
+        selectedGroup?.name ||
+        formData.cost_type ||
+        (!isUUID(formData.cost_group_id) ? formData.cost_group_id : '') ||
+        '';
+
+      const content =
+        selectedItem?.name ||
+        formData.content ||
+        (!isUUID(formData.cost_item_id) ? formData.cost_item_id : '') ||
+        formData.notes ||
+        '';
+
       const payload = {
         date: formData.date,
         cost_code,
         transaction_type: formData.transaction_type,
         cost_group_id: isUUID(formData.cost_group_id) ? formData.cost_group_id : null,
         cost_item_id: isUUID(formData.cost_item_id) ? formData.cost_item_id : null,
-        cost_type: formData.cost_type, // Fallback
-        content: formData.content, // Fallback
+        cost_type,
+        content,
         warehouse_id,
         material_id: isUUID(formData.material_id) ? formData.material_id : null,
-        quantity: formData.quantity,
-        unit: formData.unit,
+        quantity: formData.quantity || 1,
+        unit: formData.unit || 'Lần',
         unit_price: formData.unit_price || 0,
         total_amount: formData.total_amount,
         notes: isEditing
@@ -426,6 +454,7 @@ export const Costs = ({
       cost_type: item.cost_type || '',
       content: item.content || '',
       warehouse_name: item.warehouses?.name || '',
+      warehouse_id: item.warehouse_id || '',
       quantity: item.quantity,
       unit: item.unit || '',
       total_amount: item.total_amount,
@@ -972,7 +1001,6 @@ export const Costs = ({
                     />
                     <CreatableSelect
                       label="Chi tiết chi phí"
-                      required
                       value={formData.cost_item_id}
                       options={costItems}
                       onChange={(id) => {
@@ -980,17 +1008,22 @@ export const Costs = ({
                         setFormData({
                           ...formData,
                           cost_item_id: id,
+                          content: item?.name || id,
                           unit: item?.unit || formData.unit,
                         });
                       }}
                       onCreate={handleCreateItem}
-                      placeholder="Chọn hoặc nhập mới chi tiết..."
+                      placeholder={
+                        formData.cost_group_id
+                          ? 'Chọn hoặc nhập mới chi tiết...'
+                          : 'Chọn nhóm trước hoặc để trống...'
+                      }
                       disabled={!formData.cost_group_id}
                     />
                   </div>
 
                   <CreatableSelect
-                    label="Tên kho *"
+                    label="Tên kho"
                     value={formData.warehouse_name}
                     options={warehouses}
                     onChange={(val) => setFormData({ ...formData, warehouse_name: val })}
