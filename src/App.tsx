@@ -20,6 +20,7 @@ import { ErrorBoundary } from '@/components/shared';
 // Auth
 import { LoginPage } from '@/components/auth/LoginPage';
 import { logAudit } from '@/utils/auditLogger';
+import { canViewAuditLogs } from '@/utils/auditAccess';
 
 export default function App() {
   const [user, setUser] = useState<Employee | null>(() => {
@@ -244,11 +245,9 @@ export default function App() {
         ...group,
         items: group.items
           .filter((item) => {
+            // Nhật ký hệ thống: chỉ role Develop, Admin cũng không thấy menu
             if (item.id === 'audit-logs') {
-              return (
-                user.code === 'admindev' ||
-                ['admin', 'develop'].includes(user.role?.toLowerCase() || '')
-              );
+              return canViewAuditLogs(user);
             }
             const isAdmin = ['admin', 'develop'].includes(user.role?.toLowerCase() || '');
             if (!isAdmin) {
@@ -257,6 +256,7 @@ export default function App() {
                 'stock-out',
                 'transfer',
                 'costs',
+                'expense-settlements',
                 'construction-diary',
                 'contracts',
                 'xasa-gop',

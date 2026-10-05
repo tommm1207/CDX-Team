@@ -45,6 +45,7 @@ import { ErrorBoundary } from '@/components/shared';
 import { ContractModule } from '@/components/contracts/ContractModule';
 import { ChangePassword } from '@/components/auth/ChangePassword';
 import { AuditLogsPage } from '@/components/system/AuditLogsPage';
+import { canViewAuditLogs } from '@/utils/auditAccess';
 
 interface AppRouterProps {
   currentPage: string;
@@ -370,10 +371,8 @@ export const AppRouter = ({
     case 'change-password':
       return <ChangePassword user={user} onBack={goBack} addToast={addToast} />;
     case 'audit-logs':
-      if (
-        user.code !== 'admindev' &&
-        !['admin', 'develop'].includes(user.role?.toLowerCase() || '')
-      ) {
+      // Chỉ role Develop được vào. Admin bị đưa về Dashboard.
+      if (!canViewAuditLogs(user)) {
         return (
           <Dashboard
             user={user}
@@ -383,7 +382,7 @@ export const AppRouter = ({
           />
         );
       }
-      return <AuditLogsPage />;
+      return <AuditLogsPage user={user} />;
     default:
       return (
         <div className="p-4 md:p-6 space-y-6">

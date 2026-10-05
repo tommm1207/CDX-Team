@@ -1,5 +1,5 @@
 import React, { useRef, useState, useCallback, useEffect } from 'react';
-import { X, Download } from 'lucide-react';
+import { X, Download, Copy, Check, Share2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface ReportImagePreviewModalProps {
@@ -118,6 +118,45 @@ export const ReportImagePreviewModal = ({
     setTranslateY(0);
   };
 
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    if (!imageDataUrl) return;
+    try {
+      const res = await fetch(imageDataUrl);
+      const blob = await res.blob();
+      if (navigator.clipboard && window.ClipboardItem) {
+        await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      } else {
+        handleSave();
+      }
+    } catch (e) {
+      console.warn('Copy to clipboard failed, falling back to download:', e);
+      handleSave();
+    }
+  };
+
+  const handleShare = async () => {
+    if (!imageDataUrl) return;
+    try {
+      const res = await fetch(imageDataUrl);
+      const blob = await res.blob();
+      const file = new File([blob], fileName, { type: 'image/png' });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: fileName,
+        });
+      } else {
+        handleCopy();
+      }
+    } catch (e) {
+      console.warn('Share cancelled or failed:', e);
+    }
+  };
+
   const handleSave = () => {
     if (onSave) {
       onSave();
@@ -130,6 +169,9 @@ export const ReportImagePreviewModal = ({
     link.click();
     onClose();
   };
+
+  const canShareFiles =
+    typeof navigator !== 'undefined' && !!navigator.share && !!navigator.canShare;
 
   return (
     <AnimatePresence>
@@ -157,12 +199,30 @@ export const ReportImagePreviewModal = ({
               </button>
             </div>
             <div className="flex items-center gap-2">
+              {canShareFiles && (
+                <button
+                  onClick={handleShare}
+                  title="Gửi qua Zalo / Chia sẻ"
+                  className="flex items-center gap-1.5 bg-blue-600 text-white font-black text-[11px] uppercase tracking-widest px-3.5 py-2 rounded-xl hover:bg-blue-700 transition-all active:scale-95 shadow-lg shadow-blue-600/30"
+                >
+                  <Share2 size={14} />
+                  <span className="hidden sm:inline">Chia sẻ / Zalo</span>
+                </button>
+              )}
+              <button
+                onClick={handleCopy}
+                title="Sao chép ảnh để dán (Ctrl+V) vào Zalo"
+                className={`flex items-center gap-1.5 ${copied ? 'bg-green-600 text-white' : 'bg-white/15 text-white hover:bg-white/25'} font-black text-[11px] uppercase tracking-widest px-3.5 py-2 rounded-xl transition-all active:scale-95`}
+              >
+                {copied ? <Check size={14} /> : <Copy size={14} />}
+                <span>{copied ? 'Đã chép!' : 'Chép ảnh'}</span>
+              </button>
               <button
                 onClick={handleSave}
-                className="flex items-center gap-2 bg-primary text-white font-black text-[11px] uppercase tracking-widest px-4 py-2 rounded-xl hover:bg-primary-hover transition-all active:scale-95 shadow-lg shadow-primary/30"
+                className="flex items-center gap-1.5 bg-primary text-white font-black text-[11px] uppercase tracking-widest px-4 py-2 rounded-xl hover:bg-primary-hover transition-all active:scale-95 shadow-lg shadow-primary/30"
               >
                 <Download size={14} />
-                Lưu ảnh
+                <span>Tải ảnh</span>
               </button>
               <button
                 onClick={onClose}

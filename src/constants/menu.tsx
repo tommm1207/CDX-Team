@@ -79,7 +79,7 @@ export const getMenuGroups = (pendingCount: number) => [
       { id: 'notes', label: 'Note', icon: FileText },
       { id: 'reminders', label: 'Thông báo', icon: Bell },
       { id: 'trash', label: 'Thùng rác', icon: Trash2 },
-      { id: 'audit-logs', label: 'Nhật ký hệ thống', icon: Shield, adminOnly: true },
+      { id: 'audit-logs', label: 'Nhật ký hệ thống', icon: Shield, developOnly: true },
     ],
   },
   {

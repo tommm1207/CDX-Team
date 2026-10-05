@@ -76,6 +76,15 @@ export const LoginPage = ({ onLogin }: { onLogin: (user: Employee) => void }) =>
       }
 
       if (!data) {
+        // Ghi nhận nỗ lực đăng nhập bằng mã không tồn tại
+        await logAudit(null, {
+          module: 'AUTH',
+          action: 'LOGIN_FAILED',
+          status: 'FAILED',
+          description: `Đăng nhập thất bại: mã nhân viên «${employeeId}» không tồn tại`,
+          actorFallback: employeeId,
+          errorMessage: 'Mã nhân viên không tồn tại',
+        });
         setError('Mã nhân viên hoặc mật khẩu không đúng');
         return;
       }
@@ -84,6 +93,14 @@ export const LoginPage = ({ onLogin }: { onLogin: (user: Employee) => void }) =>
       const passwordMatch = password === storedPass;
 
       if (!passwordMatch) {
+        // Ghi nhận sai mật khẩu — dấu hiệu quan trọng để phát hiện dò mật khẩu
+        await logAudit(data as Employee, {
+          module: 'AUTH',
+          action: 'LOGIN_FAILED',
+          status: 'FAILED',
+          description: `Đăng nhập thất bại: sai mật khẩu (tài khoản ${data.full_name || data.code})`,
+          errorMessage: 'Sai mật khẩu',
+        });
         setError('Mã nhân viên hoặc mật khẩu không đúng');
         return;
       }
@@ -91,7 +108,7 @@ export const LoginPage = ({ onLogin }: { onLogin: (user: Employee) => void }) =>
       await logAudit(data as Employee, {
         module: 'AUTH',
         action: 'LOGIN',
-        description: `Đăng nhập hệ thống`,
+        description: `Đăng nhập hệ thống với quyền ${data.role}`,
       });
 
       onLogin(data as Employee);
