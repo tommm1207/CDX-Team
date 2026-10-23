@@ -422,14 +422,17 @@ export const StockOut = ({
             slipToCheck.date,
             id, // excludeId — bỏ phiếu hiện tại ra khỏi tính toán
           );
-          if (stockInfo.available < 0) {
-            const thieu = Math.abs(stockInfo.available);
+          // Phiếu đã bị loại khỏi phép tính, nên phải so khả dụng với chính số lượng của phiếu
+          const slipQty = Number(slipToCheck.quantity) || 0;
+          if (stockInfo.available - slipQty < 0) {
+            const thieu = slipQty - stockInfo.available;
             if (addToast)
               addToast(
                 `❌ Từ chối duyệt phiếu xuất kho
 - Tồn thực tế: ${formatNumber(stockInfo.actual)}
 - Đang giữ chỗ (Phân bổ khác): ${formatNumber(stockInfo.pendingOut)}
 - Khả dụng ngay: ${formatNumber(stockInfo.available)}
+- Số lượng phiếu: ${formatNumber(slipQty)}
 - Thiếu hụt: ${formatNumber(thieu)}
 → Vui lòng kiểm tra lại số lượng hoặc duyệt các phiếu nhập trước.`,
                 'error',

@@ -60,14 +60,17 @@ export const tongXuat = async (
  * Tổng giảm trừ do chuyển kho đi (kho này là kho xuất/from) trong khoảng [startDate, endDate].
  * Tính cả ĐÃ DUYỆT và CHỜ DUYỆT để giữ chỗ tồn kho ngay khi tạo phiếu chuyển,
  * đồng bộ với cách tính tongXuat (tránh tình trạng tồn kho âm khi phiếu chuyển được duyệt).
+ *
+ * @param excludeId  UUID của phiếu chuyển cần loại trừ (dùng khi ĐANG SỬA/DUYỆT phiếu đó)
  */
 export const giamTruChuyenDi = async (
   materialId: string,
   warehouseId: string,
   startDate: string,
   endDate: string,
+  excludeId?: string,
 ): Promise<number> => {
-  const { data } = await supabase
+  let query = supabase
     .from('transfers')
     .select('quantity')
     .eq('material_id', materialId)
@@ -75,6 +78,12 @@ export const giamTruChuyenDi = async (
     .in('status', ['Đã duyệt', 'Chờ duyệt'])
     .gte('date', startDate)
     .lte('date', endDate);
+
+  if (excludeId) {
+    query = query.neq('id', excludeId);
+  }
+
+  const { data } = await query;
   return (data || []).reduce((sum, item) => sum + Number(item.quantity), 0);
 };
 
@@ -116,7 +125,8 @@ export const tangThemChuyenDen = async (
  * @param warehouseId  UUID của kho
  * @param startDate    Ngày bắt đầu (YYYY-MM-DD)
  * @param endDate      Ngày kết thúc (YYYY-MM-DD)
- * @param excludeStockOutId  UUID phiếu xuất cần loại trừ khi tính (dùng khi đang sửa phiếu đó)
+ * @param excludeStockOutId  UUID phiếu xuất hoặc phiếu chuyển cần loại trừ khi tính
+ *                           (dùng khi đang sửa/duyệt phiếu đó; UUID không trùng giữa các bảng)
  */
 export const tonKho = async (
   materialId: string,
@@ -131,7 +141,7 @@ export const tonKho = async (
     const [nhap, xuat, chuyenDi, chuyenDen] = await Promise.all([
       tongNhap(materialId, warehouseId, startDate, endDate),
       tongXuat(materialId, warehouseId, startDate, endDate, excludeStockOutId),
-      giamTruChuyenDi(materialId, warehouseId, startDate, endDate),
+      giamTruChuyenDi(materialId, warehouseId, startDate, endDate, excludeStockOutId),
       tangThemChuyenDen(materialId, warehouseId, startDate, endDate),
     ]);
 
@@ -149,7 +159,7 @@ export const tonKho = async (
  * @param materialId          UUID của mặt hàng
  * @param warehouseId         UUID của kho
  * @param date                Ngày kiểm tra (YYYY-MM-DD) — chỉ tính phiếu ≤ ngày này
- * @param excludeStockOutId   UUID phiếu xuất cần loại trừ (khi đang sửa phiếu đó)
+ * @param excludeStockOutId   UUID phiếu xuất hoặc phiếu chuyển cần loại trừ (khi đang sửa phiếu đó)
  */
 export const getAvailableStock = async (
   materialId: string,
@@ -191,6 +201,24 @@ export const getDetailedStock = async (
       .lte('date', date);
     if (excludeId) xuatChoDuyetQ = xuatChoDuyetQ.neq('id', excludeId);
 
+    let chuyenDiDuyetQ = supabase
+      .from('transfers')
+      .select('quantity')
+      .eq('material_id', materialId)
+      .eq('from_warehouse_id', warehouseId)
+      .eq('status', 'Đã duyệt')
+      .lte('date', date);
+    if (excludeId) chuyenDiDuyetQ = chuyenDiDuyetQ.neq('id', excludeId);
+
+    let chuyenDiChoQ = supabase
+      .from('transfers')
+      .select('quantity')
+      .eq('material_id', materialId)
+      .eq('from_warehouse_id', warehouseId)
+      .eq('status', 'Chờ duyệt')
+      .lte('date', date);
+    if (excludeId) chuyenDiChoQ = chuyenDiChoQ.neq('id', excludeId);
+
     const [nhap, xuatDaDuyet, xuatChoDuyet, chuyenDiDuyet, chuyenDiCho, chuyenDenDuyet] =
       await Promise.all([
         supabase
@@ -202,20 +230,8 @@ export const getDetailedStock = async (
           .lte('date', date),
         xuatDaDuyetQ,
         xuatChoDuyetQ,
-        supabase
-          .from('transfers')
-          .select('quantity')
-          .eq('material_id', materialId)
-          .eq('from_warehouse_id', warehouseId)
-          .eq('status', 'Đã duyệt')
-          .lte('date', date),
-        supabase
-          .from('transfers')
-          .select('quantity')
-          .eq('material_id', materialId)
-          .eq('from_warehouse_id', warehouseId)
-          .eq('status', 'Chờ duyệt')
-          .lte('date', date),
+        chuyenDiDuyetQ,
+        chuyenDiChoQ,
         supabase
           .from('transfers')
           .select('quantity')
