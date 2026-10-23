@@ -30,8 +30,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { formatCurrency, toLocalISODate, formatDate } from '@/utils/format';
-import { generateSmartCode } from '@/utils/codeGenerator';
-import { numberToVietnamese } from '@/utils/helpers';
+import { numberToVietnamese, generateCode } from '@/utils/helpers';
 import { logoBase64 } from '@/utils/logoBase64';
 import { toPng } from 'html-to-image';
 
@@ -296,6 +295,15 @@ export const ExpenseSettlements = ({
       const totalAdvance = validAdvances.reduce((sum, a) => sum + Number(a.amount), 0);
       const finalBalance = totalCost + calculatedPreviousBalance - totalAdvance;
 
+      // cost_code là UNIQUE: các dòng mới trong cùng một phiếu không được trùng mã nhau
+      const usedCostCodes = new Set(validCosts.map((c) => c.cost_code).filter(Boolean));
+      const newCostCode = () => {
+        let code = generateCode('CP');
+        while (usedCostCodes.has(code)) code = generateCode('CP');
+        usedCostCodes.add(code);
+        return code;
+      };
+
       if (editingSettlement) {
         // UPDATE EXISTING
         const { error: sError } = await supabase
@@ -340,7 +348,7 @@ export const ExpenseSettlements = ({
 
         const costsToSync = validCosts.map((c) => ({
           id: c.id,
-          cost_code: c.cost_code || generateSmartCode('CP'),
+          cost_code: c.cost_code || newCostCode(),
           date: c.date,
           employee_id: editingSettlement.employee_id || user.id,
           content: c.content.trim(),
@@ -372,7 +380,7 @@ export const ExpenseSettlements = ({
         addToast?.('Cập nhật phiếu quyết toán thành công', 'success');
       } else {
         // CREATE NEW
-        const code = generateSmartCode('QT');
+        const code = generateCode('QT');
         const { data: newSettlement, error: sError } = await supabase
           .from('expense_settlements')
           .insert([
@@ -396,7 +404,7 @@ export const ExpenseSettlements = ({
 
         // Insert costs
         const costsToInsert = validCosts.map((c) => ({
-          cost_code: generateSmartCode('CP'),
+          cost_code: newCostCode(),
           date: c.date,
           employee_id: user.id,
           content: c.content.trim(),
