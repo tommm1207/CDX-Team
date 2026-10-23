@@ -1,5 +1,5 @@
 // Chạy toàn bộ E2E lần lượt trên DB test. Nên dựng lại DB test sạch trước:
-//   node scripts/db-tools/restore_to_test.mjs <bản sao lưu mới nhất> --reset
+//   node scripts/db-tools/restore_to_test.mjs --from-prod --reset
 //   npx vite --mode test --port 5199 --strictPort   (cửa sổ khác)
 //   node scripts/db-tools/e2e/run_all.mjs
 import { spawnSync } from 'child_process';

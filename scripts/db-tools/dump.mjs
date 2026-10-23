@@ -1,5 +1,6 @@
 // Đọc toàn bộ schema public (dữ liệu + cấu trúc) thành một object JSON. CHỈ ĐỌC.
-// Dùng chung cho backup_full.mjs (lưu ra thư mục) và daily_backup_telegram.mjs (gửi .json.gz).
+// Dùng cho daily_backup_telegram.mjs (gửi .json.gz lên Telegram) và restore_to_test.mjs --from-prod.
+// Không ghi file ra máy.
 import pg from 'pg';
 
 // Giữ nguyên chuỗi gốc của Postgres cho date/timestamp: tránh lệch ngày theo múi giờ máy

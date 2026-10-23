@@ -1,11 +1,14 @@
-// Khôi phục một bản sao lưu vào DB TEST (không bao giờ vào DB thật).
-//   node scripts/db-tools/restore_to_test.mjs <thư mục full_... | file .json.gz từ Telegram> [--env .env.test] [--reset]
+// Dựng DB TEST (không bao giờ ghi vào DB thật) từ một trong hai nguồn:
+//   node scripts/db-tools/restore_to_test.mjs --from-prod [--reset]      sao chép thẳng DB thật → DB test
+//                                                                       trong bộ nhớ, không ghi file ra máy
+//   node scripts/db-tools/restore_to_test.mjs <file .json.gz từ Telegram> [--reset]
 // --reset: xóa toàn bộ bảng/hàm trong schema public của DB test trước khi dựng lại.
+// --env (mặc định .env.test) chứa DB test; --prod-env (mặc định .env) chứa DB thật để đọc.
 import fs from 'fs';
-import path from 'path';
 import zlib from 'zlib';
 import pg from 'pg';
 import dotenv from 'dotenv';
+import { dumpDatabase } from './dump.mjs';
 
 const PROD_REF = 'whyulopkxtqlqrhbxdgt';
 
@@ -13,24 +16,25 @@ const arg = (name, fallback) => {
   const i = process.argv.indexOf(name);
   return i > -1 ? process.argv[i + 1] : fallback;
 };
+const fromProd = process.argv.includes('--from-prod');
 const source = process.argv[2];
-if (!source || source.startsWith('--')) {
-  throw new Error('Cách dùng: restore_to_test.mjs <thư mục backup | file .json.gz> [--env .env.test] [--reset]');
+if (!fromProd && (!source || source.startsWith('--'))) {
+  throw new Error('Cách dùng: restore_to_test.mjs --from-prod | <file .json.gz> [--reset]');
 }
-dotenv.config({ path: arg('--env', '.env.test'), quiet: true });
-const url = process.env.DATABASE_URL || '';
+// Đọc riêng từng file .env, không trộn vào process.env để tránh nhầm DB
+const readEnvUrl = (file) => dotenv.parse(fs.readFileSync(file)).DATABASE_URL || '';
+const url = readEnvUrl(arg('--env', '.env.test'));
 if (!url || url.includes(PROD_REF)) {
-  throw new Error('An toàn: DATABASE_URL trống hoặc là DB thật — dừng.');
+  throw new Error('An toàn: DATABASE_URL của DB test trống hoặc là DB thật — dừng.');
 }
 
-// Đọc bản sao lưu: thư mục (backup_full.mjs) hoặc .json.gz (backup Telegram)
+// Nguồn: đọc thẳng DB thật (chỉ đọc, giữ trong bộ nhớ) hoặc file .json.gz từ Telegram
 let schema;
 let data = {};
-if (fs.statSync(source).isDirectory()) {
-  schema = JSON.parse(fs.readFileSync(path.join(source, 'schema.json'), 'utf8'));
-  for (const f of fs.readdirSync(path.join(source, 'data'))) {
-    data[f.replace(/\.json$/, '')] = JSON.parse(fs.readFileSync(path.join(source, 'data', f), 'utf8'));
-  }
+if (fromProd) {
+  const prodUrl = readEnvUrl(arg('--prod-env', '.env'));
+  if (!prodUrl.includes(PROD_REF)) throw new Error('--prod-env không trỏ tới DB thật');
+  ({ schema, data } = await dumpDatabase(prodUrl));
 } else {
   ({ schema, data } = JSON.parse(zlib.gunzipSync(fs.readFileSync(source)).toString('utf8')));
 }

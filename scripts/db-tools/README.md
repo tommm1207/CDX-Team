@@ -9,26 +9,27 @@ Dự án có 2 DB Supabase:
 
 Hai file `.env*` không được commit (đã có trong `.gitignore`).
 
-## Sao lưu đầy đủ (chỉ đọc)
+## Sao lưu
 
-```bash
-node scripts/db-tools/backup_full.mjs --env .env --out ../CDX-backups
-```
+Không lưu bản sao lưu ra máy tính (dữ liệu có lương, mật khẩu). Backup tự động hằng ngày
+(`daily_backup_telegram.mjs`, GitHub Actions 23:00) gửi lên Telegram 2 file:
 
-Tạo thư mục `full_<thời gian>/` gồm `manifest.json` (số dòng mỗi bảng), `schema.json` (cột, ràng buộc,
-index, RLS policy, trigger, hàm) và `data/<bảng>.json`. Ngày giờ giữ nguyên dạng chuỗi của Postgres.
-
-Backup tự động hằng ngày (`daily_backup_telegram.mjs`, GitHub Actions 23:00) gửi lên Telegram 2 file:
-file Excel để đọc, và `CDX_Full_<ngày>.json.gz` chứa đầy đủ như trên để khôi phục.
+- file Excel để đọc;
+- `CDX_Full_<ngày>.json.gz`: đủ mọi bảng và cấu trúc DB (cột, ràng buộc, index, RLS policy, trigger,
+  hàm), ngày giờ giữ nguyên dạng chuỗi của Postgres. Dùng file này để khôi phục.
 
 ## Dựng / làm sạch DB test
 
 ```bash
-# từ thư mục backup hoặc file .json.gz tải từ Telegram
-node scripts/db-tools/restore_to_test.mjs ../CDX-backups/full_... --reset
+# sao chép thẳng DB thật → DB test trong bộ nhớ (chỉ đọc DB thật, không ghi file ra máy)
+node scripts/db-tools/restore_to_test.mjs --from-prod --reset
+
+# hoặc từ file .json.gz tải từ Telegram (xóa file sau khi dùng)
+node scripts/db-tools/restore_to_test.mjs CDX_Full_2026-10-23.json.gz --reset
 ```
 
-Script từ chối chạy nếu `DATABASE_URL` là DB thật. `--reset` xóa toàn bộ bảng và hàm trong DB test rồi dựng lại.
+Script chỉ ghi vào DB trong `.env.test` và từ chối chạy nếu đó là DB thật. `--reset` xóa toàn bộ bảng và
+hàm trong DB test rồi dựng lại.
 
 ## Chạy app trên DB test và kiểm thử
 

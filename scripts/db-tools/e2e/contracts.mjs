@@ -20,9 +20,8 @@ const cardButton = async (title) => {
 };
 const expectDownload = async (action) => {
   const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 20000 }), action()]);
-  const p = `${SHOTS}/${dl.suggestedFilename()}`;
-  await dl.saveAs(p);
-  return { name: dl.suggestedFilename(), size: fs.statSync(p).size };
+  // Đọc file trong thư mục tạm của Playwright (tự xóa khi đóng trình duyệt), không lưu ra máy
+  return { name: dl.suggestedFilename(), size: fs.statSync(await dl.path()).size };
 };
 
 try {
