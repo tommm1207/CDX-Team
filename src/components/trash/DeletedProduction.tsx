@@ -92,7 +92,11 @@ export const DeletedProduction = ({
         data = res.data;
         error = res.error;
       } else if (activeTab === 'split_merge_history') {
-        const res = await supabase.from('xasa_gop_phieu').select('*').eq('status', 'Đã xóa');
+        // 'da_xoa' là giá trị cũ do phân hệ Rã/Gộp ghi trước đây
+        const res = await supabase
+          .from('xasa_gop_phieu')
+          .select('*')
+          .in('status', ['Đã xóa', 'da_xoa']);
         data = res.data;
         error = res.error;
       } else if (activeTab === 'construction_diaries') {
@@ -199,13 +203,17 @@ export const DeletedProduction = ({
           .eq('id', selectedItem.id)
           .single();
         if (phieu) {
-          const pref = phieu.loai === 'xa' ? 'XA-' : 'GOP-';
-          const slipCode = `${pref}${phieu.ma_phieu}`;
-          await supabase.from('stock_in').update({ status: 'Chờ duyệt' }).eq('slip_code', slipCode);
-          await supabase
+          // Mã phiếu kho của Rã/Gộp bắt đầu bằng ma_phieu (có thể kèm hậu tố -1, -2...)
+          const { error: inErr } = await supabase
+            .from('stock_in')
+            .update({ status: 'Chờ duyệt' })
+            .like('import_code', `${phieu.ma_phieu}%`);
+          if (inErr) throw inErr;
+          const { error: outErr } = await supabase
             .from('stock_out')
             .update({ status: 'Chờ duyệt' })
-            .eq('slip_code', slipCode);
+            .like('export_code', `${phieu.ma_phieu}%`);
+          if (outErr) throw outErr;
         }
       }
 
@@ -260,10 +268,16 @@ export const DeletedProduction = ({
           .eq('id', selectedItem.id)
           .single();
         if (phieu) {
-          const pref = phieu.loai === 'xa' ? 'XA-' : 'GOP-';
-          const slipCode = `${pref}${phieu.ma_phieu}`;
-          await supabase.from('stock_in').delete().eq('slip_code', slipCode);
-          await supabase.from('stock_out').delete().eq('slip_code', slipCode);
+          const { error: inErr } = await supabase
+            .from('stock_in')
+            .delete()
+            .like('import_code', `${phieu.ma_phieu}%`);
+          if (inErr) throw inErr;
+          const { error: outErr } = await supabase
+            .from('stock_out')
+            .delete()
+            .like('export_code', `${phieu.ma_phieu}%`);
+          if (outErr) throw outErr;
         }
       }
 

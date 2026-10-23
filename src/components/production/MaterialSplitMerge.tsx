@@ -210,13 +210,26 @@ export const MaterialSplitMerge = ({
       let phieuId = editingId;
 
       if (isEditing && editingId) {
-        await supabase.from('stock_in').delete().like('import_code', `${ma_phieu}%`);
-        await supabase.from('stock_out').delete().like('export_code', `${ma_phieu}%`);
-        await supabase.from('xasa_gop_chi_tiet').delete().eq('phieu_id', editingId);
+        const { error: delInErr } = await supabase
+          .from('stock_in')
+          .delete()
+          .like('import_code', `${ma_phieu}%`);
+        if (delInErr) throw delInErr;
+        const { error: delOutErr } = await supabase
+          .from('stock_out')
+          .delete()
+          .like('export_code', `${ma_phieu}%`);
+        if (delOutErr) throw delOutErr;
+        const { error: delCtErr } = await supabase
+          .from('xasa_gop_chi_tiet')
+          .delete()
+          .eq('phieu_id', editingId);
+        if (delCtErr) throw delCtErr;
 
+        // Phiếu kho được tạo lại ở trạng thái 'Chờ duyệt' nên phiếu gốc cũng quay về chờ duyệt
         const { error: updateErr } = await supabase
           .from('xasa_gop_phieu')
-          .update({ kho_id, ghi_chu: ghi_chu || null })
+          .update({ kho_id, ghi_chu: ghi_chu || null, status: 'Chờ duyệt' })
           .eq('id', editingId);
         if (updateErr) throw updateErr;
       } else {
@@ -230,7 +243,7 @@ export const MaterialSplitMerge = ({
               kho_id,
               nguoi_tao: user.id,
               ghi_chu: ghi_chu || null,
-              status: 'cho_duyet',
+              status: 'Chờ duyệt',
             },
           ])
           .select()
@@ -382,20 +395,22 @@ export const MaterialSplitMerge = ({
       const today = toLocalISODate();
 
       // 1. Approve associated stock_in/out (import_code/export_code may have suffixes)
-      await supabase
+      const { error: inErr } = await supabase
         .from('stock_in')
         .update({ status: 'Đã duyệt' })
         .like('import_code', `${phieu.ma_phieu}%`);
+      if (inErr) throw inErr;
 
-      await supabase
+      const { error: outErr } = await supabase
         .from('stock_out')
         .update({ status: 'Đã duyệt' })
         .like('export_code', `${phieu.ma_phieu}%`);
+      if (outErr) throw outErr;
 
       // 2. Update phieu status
       const { error } = await supabase
         .from('xasa_gop_phieu')
-        .update({ status: 'da_duyet' })
+        .update({ status: 'Đã duyệt' })
         .eq('id', phieu.id);
       if (error) throw error;
 
@@ -408,28 +423,34 @@ export const MaterialSplitMerge = ({
     }
   };
 
+  // Xóa mềm: phiếu kho liên quan và phiếu gốc chuyển sang 'Đã xóa', giữ chi tiết
+  // để có thể khôi phục từ Thùng rác (phiếu 'Đã xóa' không được tính vào tồn kho).
+  const softDeletePhieu = async (phieu: any) => {
+    const { error: inErr } = await supabase
+      .from('stock_in')
+      .update({ status: 'Đã xóa' })
+      .like('import_code', `${phieu.ma_phieu}%`);
+    if (inErr) throw inErr;
+
+    const { error: outErr } = await supabase
+      .from('stock_out')
+      .update({ status: 'Đã xóa' })
+      .like('export_code', `${phieu.ma_phieu}%`);
+    if (outErr) throw outErr;
+
+    const { error } = await supabase
+      .from('xasa_gop_phieu')
+      .update({ status: 'Đã xóa' })
+      .eq('id', phieu.id);
+    if (error) throw error;
+  };
+
   const handleRejectPhieu = async (phieu: any) => {
     if (!window.confirm(`Từ chối và xóa phiếu ${phieu.ma_phieu}?`)) return;
 
     setSubmitting(true);
     try {
-      const pref = phieu.loai === 'xa' ? 'XA-' : 'GOP-';
-      const slipCode = `${pref}${phieu.ma_phieu}`;
-
-      // Delete stock records
-      await supabase.from('stock_in').delete().like('import_code', `${phieu.ma_phieu}%`);
-      await supabase.from('stock_out').delete().like('export_code', `${phieu.ma_phieu}%`);
-
-      // Delete phieu chi tiet
-      await supabase.from('xasa_gop_chi_tiet').delete().eq('phieu_id', phieu.id);
-
-      // Đưa phieu header vào thùng rác (Soft Delete)
-      const { error } = await supabase
-        .from('xasa_gop_phieu')
-        .update({ status: 'da_xoa' })
-        .eq('id', phieu.id);
-      if (error) throw error;
-
+      await softDeletePhieu(phieu);
       if (addToast) addToast('Đã từ chối và xóa phiếu', 'info');
       fetchHistory();
     } catch (err: any) {
@@ -507,16 +528,7 @@ export const MaterialSplitMerge = ({
 
     setSubmitting(true);
     try {
-      await supabase.from('stock_in').delete().like('import_code', `${phieu.ma_phieu}%`);
-      await supabase.from('stock_out').delete().like('export_code', `${phieu.ma_phieu}%`);
-      await supabase.from('xasa_gop_chi_tiet').delete().eq('phieu_id', phieu.id);
-
-      const { error } = await supabase
-        .from('xasa_gop_phieu')
-        .update({ status: 'da_xoa' })
-        .eq('id', phieu.id);
-      if (error) throw error;
-
+      await softDeletePhieu(phieu);
       if (addToast) addToast('Đã xóa phiếu thành công', 'success');
       setShowDetailPhieu(false);
       fetchHistory();
@@ -527,11 +539,16 @@ export const MaterialSplitMerge = ({
     }
   };
 
+  // Dữ liệu cũ dùng 'cho_duyet', dữ liệu mới dùng 'Chờ duyệt' như các phân hệ khác
+  const isPendingStatus = (status: string) => status === 'cho_duyet' || status === 'Chờ duyệt';
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'cho_duyet':
+      case 'Chờ duyệt':
         return { label: 'Chờ duyệt', bg: 'bg-primary/10', text: 'text-primary' };
       case 'da_duyet':
+      case 'Đã duyệt':
         return { label: 'Đã duyệt', bg: 'bg-green-100', text: 'text-green-700' };
       case 'da_huy':
         return { label: 'Đã hủy', bg: 'bg-red-100', text: 'text-red-700' };
@@ -726,7 +743,7 @@ export const MaterialSplitMerge = ({
                         {item.ma_phieu.split('-')[1] || item.ma_phieu}
                       </span>
                       {(() => {
-                        const badge = getStatusBadge(item.trang_thai);
+                        const badge = getStatusBadge(item.status);
                         return (
                           <span
                             className={`px-1 rounded text-[7px] font-bold shrink-0 ${badge.bg} ${badge.text}`}
@@ -1147,9 +1164,9 @@ export const MaterialSplitMerge = ({
                   <div>
                     <p className="text-[10px] text-gray-400 font-bold uppercase">Trạng thái</p>
                     <span
-                      className={`px-2 py-0.5 rounded-lg text-xs font-bold ${getStatusBadge(selectedPhieu.trang_thai).bg} ${getStatusBadge(selectedPhieu.trang_thai).text}`}
+                      className={`px-2 py-0.5 rounded-lg text-xs font-bold ${getStatusBadge(selectedPhieu.status).bg} ${getStatusBadge(selectedPhieu.status).text}`}
                     >
-                      {getStatusBadge(selectedPhieu.trang_thai).label}
+                      {getStatusBadge(selectedPhieu.status).label}
                     </span>
                   </div>
                 </div>
@@ -1262,7 +1279,7 @@ export const MaterialSplitMerge = ({
                     </Button>
                   </>
                 )}
-                {selectedPhieu.trang_thai === 'cho_duyet' &&
+                {isPendingStatus(selectedPhieu.status) &&
                   (user.role === 'Admin' || user.role === 'Develop') && (
                     <>
                       <Button

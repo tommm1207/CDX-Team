@@ -147,8 +147,8 @@ export const DeletedSlips = ({
   };
 
   const isFromSplitMerge = (item: any) => {
-    const code = item?.slip_code || '';
-    return code.startsWith('XA-') || code.startsWith('GOP-');
+    const code = item?.code || item?.slip_code || '';
+    return code.startsWith('XA') || code.startsWith('GOP');
   };
 
   const confirmRestore = async () => {
