@@ -1,6 +1,8 @@
 import { Client } from 'pg';
 import ExcelJS from 'exceljs';
 import dotenv from 'dotenv';
+import zlib from 'zlib';
+import { dumpDatabase } from './db-tools/dump.mjs';
 
 dotenv.config();
 
@@ -658,6 +660,35 @@ _Bản sao lưu gửi trực tiếp lên Telegram Cloud, không chiếm ổ đĩ
     }
   } catch (tgErr) {
     console.error('❌ Lỗi kết nối Telegram API:', tgErr.message);
+  }
+
+  // Bản đầy đủ dạng JSON (mọi bảng + cấu trúc DB) — dùng để khôi phục chính xác bằng
+  // scripts/db-tools/restore_to_test.mjs. File Excel ở trên chỉ để đọc, thiếu một số bảng.
+  try {
+    const dump = await dumpDatabase(connectionString);
+    const gz = zlib.gzipSync(JSON.stringify(dump));
+    const tableCount = Object.keys(dump.manifest.tables).length;
+    const rowCount = Object.values(dump.manifest.tables).reduce((a, b) => a + b, 0);
+
+    const form = new FormData();
+    form.append('chat_id', TELEGRAM_CHAT_ID);
+    form.append(
+      'caption',
+      `🗄 Bản sao lưu ĐẦY ĐỦ ${dateStr}: ${tableCount} bảng, ${rowCount.toLocaleString('vi-VN')} dòng, ` +
+        `${(gz.byteLength / 1024).toFixed(1)} KB. Dùng để khôi phục chính xác (scripts/db-tools).`,
+    );
+    form.append('document', new Blob([gz], { type: 'application/gzip' }), `CDX_Full_${dateStr}.json.gz`);
+
+    const response = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendDocument`, {
+      method: 'POST',
+      body: form,
+    });
+    const result = await response.json();
+    if (!result.ok) throw new Error(result.description);
+    console.log(`🗄 Đã gửi bản đầy đủ JSON (${tableCount} bảng, ${rowCount} dòng).`);
+  } catch (fullErr) {
+    console.error('❌ Lỗi tạo/gửi bản đầy đủ JSON:', fullErr.message);
+    process.exitCode = 1;
   }
 }
 
