@@ -82,7 +82,10 @@ async function runBackup() {
 
   console.log(`[${dateStr} ${timeStr}] Bắt đầu xuất bản sao lưu cao cấp CDX...`);
 
-  const connectionString = process.env.DATABASE_URL || 'postgresql://postgres.whyulopkxtqlqrhbxdgt:CDX2026cdx@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres';
+  const connectionString = process.env.DATABASE_URL;
+  if (!connectionString) {
+    throw new Error('Thiếu biến môi trường DATABASE_URL');
+  }
   const client = new Client({
     connectionString,
     keepAlive: true,
