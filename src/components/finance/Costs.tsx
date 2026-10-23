@@ -413,7 +413,8 @@ export const Costs = ({
         notes: isEditing
           ? `[SỬA lúc ${new Date().toLocaleString('vi-VN')}] ${formData.notes?.replace(/^\[SỬA lúc .*?\]\s*/, '') || ''}`
           : formData.notes || '',
-        employee_id: user.id,
+        // Khi sửa, giữ người lập phiếu gốc thay vì đổi thành người đang sửa
+        employee_id: isEditing ? formData.employee_id || user.id : user.id,
         status: ['admin', 'develop'].includes(user.role?.toLowerCase() || '')
           ? isEditing
             ? formData.status
@@ -492,6 +493,7 @@ export const Costs = ({
       status: item.status,
       cost_group_id: item.cost_group_id || '',
       cost_item_id: item.cost_item_id || '',
+      employee_id: item.employee_id || '',
     });
     setEditingId(item.id);
     setIsEditing(true);

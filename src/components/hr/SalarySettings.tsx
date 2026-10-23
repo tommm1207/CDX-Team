@@ -72,6 +72,7 @@ export const SalarySettings = ({
     setEmployees(empData || []);
     setAllSettings(setData || []);
     setLoading(false);
+    return setData || [];
   };
 
   useEffect(() => {
@@ -92,8 +93,9 @@ export const SalarySettings = ({
     );
   };
 
-  const getHistory = (empId: string) => {
-    return allSettings
+  // `source` cho phép dùng dữ liệu vừa tải lại, tránh đọc allSettings cũ trong closure
+  const getHistory = (empId: string, source: any[] = allSettings) => {
+    return source
       .filter((s) => s.employee_id === empId)
       .sort(
         (a, b) => new Date(b.valid_from || 0).getTime() - new Date(a.valid_from || 0).getTime(),
@@ -140,8 +142,8 @@ export const SalarySettings = ({
       if (addToast) addToast('Đã thêm mức lương mới!', 'success');
       setAddingNew(false);
       setNewForm({ ...emptyForm });
-      await fetchData();
-      setEmpHistory(getHistory(selectedEmp.id));
+      const fresh = await fetchData();
+      setEmpHistory(getHistory(selectedEmp.id, fresh));
     }
   };
 
@@ -161,7 +163,7 @@ export const SalarySettings = ({
           if (addToast) addToast('Lỗi: ' + error.message, 'error');
         } else {
           if (addToast) addToast('Cập nhật thành công!', 'success');
-          fetchData().then(() => setEmpHistory(getHistory(selectedEmp.id)));
+          fetchData().then((fresh) => setEmpHistory(getHistory(selectedEmp.id, fresh)));
         }
       });
   };
@@ -181,7 +183,7 @@ export const SalarySettings = ({
           if (addToast) addToast('Lỗi: ' + error.message, 'error');
         } else {
           if (addToast) addToast('Đã xóa!', 'success');
-          fetchData().then(() => setEmpHistory(getHistory(selectedEmp.id)));
+          fetchData().then((fresh) => setEmpHistory(getHistory(selectedEmp.id, fresh)));
         }
       });
   };

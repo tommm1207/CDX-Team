@@ -226,7 +226,8 @@ export const MaterialGroups = ({
     e.preventDefault();
     setSubmitting(true);
     try {
-      const { id, ...rest } = materialFormData;
+      // _inUse là cờ giao diện, material_groups là dữ liệu join — không phải cột của bảng
+      const { id, _inUse, material_groups, ...rest } = materialFormData as any;
       const dataToSubmit = { ...rest, group_id: selectedGroup.id };
 
       if (isEditingMaterial) {

@@ -151,10 +151,12 @@ export const ConstructionDiaryComponent = ({
 
     try {
       if (editingId) {
+        // Bỏ các trường join/khóa (warehouses, id, created_at) — không phải cột để cập nhật
+        const { warehouses: _wh, id: _id, created_at: _createdAt, ...editable } = formData as any;
         const { error } = await supabase
           .from('construction_diaries')
           .update({
-            ...formData,
+            ...editable,
             status: ['admin', 'develop'].includes(user.role?.toLowerCase() || '')
               ? (formData as any).status
               : 'Chờ duyệt',
@@ -218,7 +220,7 @@ export const ConstructionDiaryComponent = ({
       if (searchTerm) {
         const s = searchTerm.toLowerCase();
         return (
-          item.work_progress.toLowerCase().includes(s) ||
+          item.work_progress?.toLowerCase().includes(s) ||
           item.labor_info?.toLowerCase().includes(s) ||
           item.diary_code?.toLowerCase().includes(s)
         );
