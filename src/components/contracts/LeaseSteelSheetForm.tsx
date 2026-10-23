@@ -34,33 +34,48 @@ const LABEL_STYLE = 'text-[10px] font-bold text-gray-400 uppercase tracking-wide
 export const LeaseSteelSheetForm = ({
   onBack,
   addToast,
+  contractId,
+  initialData,
 }: {
   onBack: () => void;
   addToast: any;
+  /** Khi sửa hợp đồng có sẵn: id bản ghi và dữ liệu form đã chuyển đổi từ DB */
+  contractId?: string;
+  initialData?: any;
 }) => {
   const [loading, setLoading] = useState(false);
-  const [formData, setFormData] = useState({
-    contractCode: `HĐCT/CDX-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
-    date: toLocalISODate(),
-    partyA: { ...PARTY_A_DEFAULT },
-    partyB: {
-      companyName: '',
-      representative: '',
-      position: 'Giám đốc',
-      address: '',
-      taxCode: '',
-      phone: '',
+  // null = chưa lưu lần nào → insert; có id → update đúng bản ghi đó
+  const [savedId, setSavedId] = useState<string | null>(contractId || null);
+  const [formData, setFormData] = useState(
+    initialData ?? {
+      contractCode: `HĐCT/CDX-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
+      date: toLocalISODate(),
+      partyA: { ...PARTY_A_DEFAULT },
+      partyB: {
+        companyName: '',
+        representative: '',
+        position: 'Giám đốc',
+        address: '',
+        taxCode: '',
+        phone: '',
+      },
+      content: {
+        projectName: 'TRAM BIEN AP 500KV LONG THANH',
+        category: 'CHO THUE THEP TON TAM',
+        location: 'Long Thanh - Dong Nai',
+      },
+      items: [
+        { id: 1, name: 'Cho thuê thép tôn tấm', unit: 'tấm/tháng', quantity: 40, price: 1200000 },
+        {
+          id: 2,
+          name: 'Vận chuyển vật tư lượt đi về',
+          unit: 'kg/lượt',
+          quantity: 2,
+          price: 9000000,
+        },
+      ],
     },
-    content: {
-      projectName: 'TRAM BIEN AP 500KV LONG THANH',
-      category: 'CHO THUE THEP TON TAM',
-      location: 'Long Thanh - Dong Nai',
-    },
-    items: [
-      { id: 1, name: 'Cho thuê thép tôn tấm', unit: 'tấm/tháng', quantity: 40, price: 1200000 },
-      { id: 2, name: 'Vận chuyển vật tư lượt đi về', unit: 'kg/lượt', quantity: 2, price: 9000000 },
-    ],
-  });
+  );
 
   const handleSwap = () => {
     const newA = { ...formData.partyB };
@@ -96,18 +111,27 @@ export const LeaseSteelSheetForm = ({
   const handleSave = async () => {
     setLoading(true);
     try {
-      const { error } = await supabase.from('contracts').upsert(
-        {
-          contract_code: formData.contractCode,
-          type: 'THUE_THEP_TAM',
-          party_a_info: formData.partyA,
-          party_b_info: formData.partyB,
-          content: { ...formData.content, items: formData.items, total },
-          status: 'Đã ký',
-        },
-        { onConflict: 'contract_code' },
-      );
-      if (error) throw error;
+      const payload = {
+        contract_code: formData.contractCode,
+        type: 'THUE_THEP_TAM',
+        party_a_info: formData.partyA,
+        party_b_info: formData.partyB,
+        content: { ...formData.content, items: formData.items, total, date: formData.date },
+        status: 'Đã ký',
+      };
+      // Không dùng upsert theo contract_code: mã trùng sẽ ghi đè mất hợp đồng khác
+      if (savedId) {
+        const { error } = await supabase.from('contracts').update(payload).eq('id', savedId);
+        if (error) throw error;
+      } else {
+        const { data, error } = await supabase
+          .from('contracts')
+          .insert([payload])
+          .select('id')
+          .single();
+        if (error) throw error;
+        setSavedId(data.id);
+      }
       return true;
     } catch (error: any) {
       addToast('Lỗi lưu dữ liệu: ' + error.message, 'error');

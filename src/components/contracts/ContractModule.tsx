@@ -2,12 +2,29 @@ import { useState, useEffect } from 'react';
 import { FileText, Plus, Search, MoreVertical, Trash2, Edit3, FileOutput, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { supabase } from '@/lib/supabase';
-import { Button } from '@/components/shared';
+import { Button, ConfirmModal } from '@/components/shared';
+import { exportLeaseVehicleContract, exportSteelSheetContract } from '@/utils/contractExport';
 import { LeaseVehicleForm } from './LeaseVehicleForm';
 import { LeaseSteelSheetForm } from './LeaseSteelSheetForm';
 
+/** Chuyển bản ghi contracts trong DB về đúng dạng formData mà form và hàm xuất Word dùng. */
+const toFormData = (contract: any) => {
+  const { items, total: _total, date, ...content } = contract.content || {};
+  return {
+    contractCode: contract.contract_code,
+    date: date || contract.created_at?.slice(0, 10),
+    partyA: contract.party_a_info || {},
+    partyB: contract.party_b_info || {},
+    content,
+    ...(contract.type === 'THUE_THEP_TAM' ? { items: items || [] } : {}),
+  };
+};
+
 export const ContractModule = ({ user, addToast }: { user: any; addToast: any }) => {
   const [view, setView] = useState<'list' | 'create_thue_xe' | 'create_thue_thep_tam'>('list');
+  const [editingContract, setEditingContract] = useState<any>(null);
+  const [deletingContract, setDeletingContract] = useState<any>(null);
+  const [actionLoading, setActionLoading] = useState(false);
   const [contracts, setContracts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -35,14 +52,59 @@ export const ContractModule = ({ user, addToast }: { user: any; addToast: any })
     }
   };
 
+  const backToList = () => {
+    setView('list');
+    setEditingContract(null);
+    fetchContracts();
+  };
+
+  const handleEdit = (contract: any) => {
+    setEditingContract(contract);
+    setView(contract.type === 'THUE_XE' ? 'create_thue_xe' : 'create_thue_thep_tam');
+  };
+
+  const handleExport = async (contract: any) => {
+    setActionLoading(true);
+    try {
+      const data = toFormData(contract);
+      if (contract.type === 'THUE_XE') await exportLeaseVehicleContract(data);
+      else await exportSteelSheetContract(data);
+      addToast('Đã tạo file Word thành công!', 'success');
+    } catch (error: any) {
+      addToast('Lỗi xuất file: ' + error.message, 'error');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Xóa mềm: danh sách chỉ hiện hợp đồng có is_deleted = false
+  const confirmDelete = async () => {
+    if (!deletingContract) return;
+    setActionLoading(true);
+    try {
+      const { error } = await supabase
+        .from('contracts')
+        .update({ is_deleted: true })
+        .eq('id', deletingContract.id);
+      if (error) throw error;
+      addToast(`Đã xóa hợp đồng ${deletingContract.contract_code}`, 'success');
+      setDeletingContract(null);
+      fetchContracts();
+    } catch (error: any) {
+      addToast('Lỗi xóa hợp đồng: ' + error.message, 'error');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   if (view === 'create_thue_xe') {
     return (
       <LeaseVehicleForm
-        onBack={() => {
-          setView('list');
-          fetchContracts();
-        }}
+        key={editingContract?.id || 'new'}
+        onBack={backToList}
         addToast={addToast}
+        contractId={editingContract?.id}
+        initialData={editingContract ? toFormData(editingContract) : undefined}
       />
     );
   }
@@ -50,11 +112,11 @@ export const ContractModule = ({ user, addToast }: { user: any; addToast: any })
   if (view === 'create_thue_thep_tam') {
     return (
       <LeaseSteelSheetForm
-        onBack={() => {
-          setView('list');
-          fetchContracts();
-        }}
+        key={editingContract?.id || 'new'}
+        onBack={backToList}
         addToast={addToast}
+        contractId={editingContract?.id}
+        initialData={editingContract ? toFormData(editingContract) : undefined}
       />
     );
   }
@@ -201,13 +263,26 @@ export const ContractModule = ({ user, addToast }: { user: any; addToast: any })
 
                 {/* Action Overlay on Hover */}
                 <div className="absolute inset-0 bg-primary/95 flex items-center justify-center gap-4 translate-y-full group-hover:translate-y-0 transition-transform duration-300 z-20">
-                  <button className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-primary shadow-lg active:scale-95 transition-all">
+                  <button
+                    title="Sửa"
+                    onClick={() => handleEdit(contract)}
+                    className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-primary shadow-lg active:scale-95 transition-all"
+                  >
                     <Edit3 size={20} />
                   </button>
-                  <button className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-blue-600 shadow-lg active:scale-95 transition-all">
+                  <button
+                    title="Xuất file Word"
+                    disabled={actionLoading}
+                    onClick={() => handleExport(contract)}
+                    className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-blue-600 shadow-lg active:scale-95 transition-all disabled:opacity-50"
+                  >
                     <FileOutput size={20} />
                   </button>
-                  <button className="w-12 h-12 bg-red-500 rounded-2xl flex items-center justify-center text-white shadow-lg active:scale-95 transition-all">
+                  <button
+                    title="Xóa"
+                    onClick={() => setDeletingContract(contract)}
+                    className="w-12 h-12 bg-red-500 rounded-2xl flex items-center justify-center text-white shadow-lg active:scale-95 transition-all"
+                  >
                     <Trash2 size={20} />
                   </button>
                 </div>
@@ -215,6 +290,15 @@ export const ContractModule = ({ user, addToast }: { user: any; addToast: any })
             ))
         )}
       </div>
+      <ConfirmModal
+        show={!!deletingContract}
+        title="Xóa hợp đồng"
+        message={`Xóa hợp đồng ${deletingContract?.contract_code || ''}? Hợp đồng sẽ bị ẩn khỏi danh sách.`}
+        confirmText="Xóa"
+        onConfirm={confirmDelete}
+        onCancel={() => setDeletingContract(null)}
+        isLoading={actionLoading}
+      />
     </div>
   );
 };

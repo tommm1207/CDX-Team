@@ -30,31 +30,46 @@ const INPUT_STYLE =
   'w-full px-4 py-2.5 bg-gray-50 border border-transparent rounded-xl text-sm font-bold outline-none focus:bg-white focus:border-primary/20 transition-all placeholder:text-gray-300';
 const LABEL_STYLE = 'text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1 block ml-1';
 
-export const LeaseVehicleForm = ({ onBack, addToast }: { onBack: () => void; addToast: any }) => {
+export const LeaseVehicleForm = ({
+  onBack,
+  addToast,
+  contractId,
+  initialData,
+}: {
+  onBack: () => void;
+  addToast: any;
+  /** Khi sửa hợp đồng có sẵn: id bản ghi và dữ liệu form đã chuyển đổi từ DB */
+  contractId?: string;
+  initialData?: any;
+}) => {
   const [loading, setLoading] = useState(false);
-  const [formData, setFormData] = useState({
-    contractCode: `HĐKT/CDX-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
-    date: toLocalISODate(),
-    partyA: { ...PARTY_A_DEFAULT },
-    partyB: {
-      companyName: '',
-      representative: '',
-      position: 'Giám đốc',
-      address: '',
-      taxCode: '',
-      email: '',
-      phone: '',
-      bankAccount: '',
+  // null = chưa lưu lần nào → insert; có id → update đúng bản ghi đó
+  const [savedId, setSavedId] = useState<string | null>(contractId || null);
+  const [formData, setFormData] = useState(
+    initialData ?? {
+      contractCode: `HĐKT/CDX-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
+      date: toLocalISODate(),
+      partyA: { ...PARTY_A_DEFAULT },
+      partyB: {
+        companyName: '',
+        representative: '',
+        position: 'Giám đốc',
+        address: '',
+        taxCode: '',
+        email: '',
+        phone: '',
+        bankAccount: '',
+      },
+      content: {
+        workContent:
+          'Bên B đồng ý cho bên A thuê các thiết bị: 01 xe đào bánh xích (từ 05 trở lên); 01 chẹc vận chuyển và gồm cả (hợp đồng tài xế, tài công) điều khiển làm việc để phục vụ thi công công trình điện vị trí VT26, VT27 tại Xã Tân Chánh (thuộc dự án Trạm biến áp 220kV và đường dây đấu nối Gò Công – Cần Đước)',
+        duration: '01 tháng',
+        startDate: toLocalISODate(),
+        totalPrice: 64800000,
+        paymentAmount: 34800000,
+      },
     },
-    content: {
-      workContent:
-        'Bên B đồng ý cho bên A thuê các thiết bị: 01 xe đào bánh xích (từ 05 trở lên); 01 chẹc vận chuyển và gồm cả (hợp đồng tài xế, tài công) điều khiển làm việc để phục vụ thi công công trình điện vị trí VT26, VT27 tại Xã Tân Chánh (thuộc dự án Trạm biến áp 220kV và đường dây đấu nối Gò Công – Cần Đước)',
-      duration: '01 tháng',
-      startDate: toLocalISODate(),
-      totalPrice: 64800000,
-      paymentAmount: 34800000,
-    },
-  });
+  );
 
   const handleSwap = () => {
     const newA = { ...formData.partyB };
@@ -68,18 +83,27 @@ export const LeaseVehicleForm = ({ onBack, addToast }: { onBack: () => void; add
   const handleSave = async () => {
     setLoading(true);
     try {
-      const { error } = await supabase.from('contracts').upsert(
-        {
-          contract_code: formData.contractCode,
-          type: 'THUE_XE',
-          party_a_info: formData.partyA,
-          party_b_info: formData.partyB,
-          content: formData.content,
-          status: 'Đã ký',
-        },
-        { onConflict: 'contract_code' },
-      );
-      if (error) throw error;
+      const payload = {
+        contract_code: formData.contractCode,
+        type: 'THUE_XE',
+        party_a_info: formData.partyA,
+        party_b_info: formData.partyB,
+        content: { ...formData.content, date: formData.date },
+        status: 'Đã ký',
+      };
+      // Không dùng upsert theo contract_code: mã trùng sẽ ghi đè mất hợp đồng khác
+      if (savedId) {
+        const { error } = await supabase.from('contracts').update(payload).eq('id', savedId);
+        if (error) throw error;
+      } else {
+        const { data, error } = await supabase
+          .from('contracts')
+          .insert([payload])
+          .select('id')
+          .single();
+        if (error) throw error;
+        setSavedId(data.id);
+      }
       return true;
     } catch (error: any) {
       addToast('Lỗi lưu dữ liệu: ' + error.message, 'error');

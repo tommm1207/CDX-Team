@@ -339,10 +339,8 @@ export const exportSteelSheetContract = async (data: any) => {
     ],
   });
 
-  const buffer = await Packer.toBuffer(doc);
-  const blob = new Blob([buffer], {
-    type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  });
+  // toBlob chạy được trên trình duyệt; toBuffer cần Node Buffer
+  const blob = await Packer.toBlob(doc);
   saveAs(blob, `Hop_Dong_Thue_Thep_Tam_${contractCode || 'New'}.docx`);
 };
 
@@ -506,9 +504,7 @@ export const exportLeaseVehicleContract = async (data: any) => {
     ],
   });
 
-  const buffer = await Packer.toBuffer(doc);
-  const blob = new Blob([buffer], {
-    type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  });
+  // toBlob chạy được trên trình duyệt; toBuffer cần Node Buffer
+  const blob = await Packer.toBlob(doc);
   saveAs(blob, `Hop_Dong_Thue_Xe_${contractCode || 'New'}.docx`);
 };
