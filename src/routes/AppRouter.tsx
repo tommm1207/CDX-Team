@@ -34,6 +34,7 @@ import { DeletedSlips } from '@/components/trash/DeletedSlips';
 import { DeletedEmployees } from '@/components/trash/DeletedEmployees';
 import { DeletedCosts } from '@/components/trash/DeletedCosts';
 import { DeletedProduction } from '@/components/trash/DeletedProduction';
+import { DeletedAdvances } from '@/components/trash/DeletedAdvances';
 import { Notes } from '@/components/notes/Notes';
 import { Reminders } from '@/components/reminders/Reminders';
 import { Backup } from '@/components/settings/Backup';
@@ -333,6 +334,18 @@ export const AppRouter = ({
       return <DeletedCosts user={user} onBack={goBack} addToast={addToast} />;
     case 'deleted-production':
       return <DeletedProduction user={user} onBack={goBack} addToast={addToast} />;
+    case 'deleted-advances':
+      if (!isAdmin) {
+        return (
+          <Dashboard
+            user={user}
+            onNavigate={navigateTo}
+            addToast={addToast}
+            pendingApprovals={pendingCount}
+          />
+        );
+      }
+      return <DeletedAdvances user={user} onBack={goBack} addToast={addToast} />;
     case 'material-groups':
       return <MaterialGroups user={user} onBack={goBack} addToast={addToast} />;
     case 'backup-settings':

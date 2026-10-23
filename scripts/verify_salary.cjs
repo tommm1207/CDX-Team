@@ -31,8 +31,8 @@ async function calculateSalary(queryStart, queryEnd, targetEmployeeId) {
   const { data: settings } = await supabase.from('salary_settings').select('*');
 
   let attQuery = supabase.from('attendance').select('*').gte('date', queryStart).lte('date', queryEnd);
-  let advQuery = supabase.from('advances').select('*').gte('date', queryStart).lte('date', queryEnd);
-  let allQuery = supabase.from('allowances').select('*').gte('date', queryStart).lte('date', queryEnd);
+  let advQuery = supabase.from('advances').select('*').or('status.is.null,status.neq.Đã xóa').gte('date', queryStart).lte('date', queryEnd);
+  let allQuery = supabase.from('allowances').select('*').or('status.is.null,status.neq.Đã xóa').gte('date', queryStart).lte('date', queryEnd);
 
   if (targetEmployeeId) {
     attQuery = attQuery.eq('employee_id', targetEmployeeId);
@@ -79,7 +79,7 @@ async function calculateSalary(queryStart, queryEnd, targetEmployeeId) {
       if (!targetEmployeeId && empAtt.length === 0 && empAdv.length === 0 && empAll.length === 0)
         return null;
 
-      // Tạm ứng và phụ cấp: cộng toàn bộ trong khoảng (không lọc theo trạng thái)
+      // Tạm ứng và phụ cấp: cộng toàn bộ trong khoảng, trừ bản ghi đã xóa (Thùng rác)
       const totalAdv = empAdv.reduce((sum, a) => sum + Number(a.amount || 0), 0);
       const totalAll = empAll.reduce((sum, a) => sum + Number(a.amount || 0), 0);
 

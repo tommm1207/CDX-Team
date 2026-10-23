@@ -1,4 +1,5 @@
 export { Trash } from './Trash';
+export { DeletedAdvances } from './DeletedAdvances';
 export { DeletedCosts } from './DeletedCosts';
 export { DeletedEmployees } from './DeletedEmployees';
 export { DeletedMaterials } from './DeletedMaterials';

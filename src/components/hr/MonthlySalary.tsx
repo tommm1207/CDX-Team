@@ -109,11 +109,13 @@ export const MonthlySalary = ({
       let advQuery = supabase
         .from('advances')
         .select('*')
+        .or('status.is.null,status.neq.Đã xóa')
         .gte('date', queryStart)
         .lte('date', queryEnd);
       let allQuery = supabase
         .from('allowances')
         .select('*')
+        .or('status.is.null,status.neq.Đã xóa')
         .gte('date', queryStart)
         .lte('date', queryEnd);
 
@@ -274,12 +276,14 @@ export const MonthlySalary = ({
       const { data: adv } = await supabase
         .from('advances')
         .select('*')
+        .or('status.is.null,status.neq.Đã xóa')
         .eq('employee_id', selectedSalary.id)
         .gte('date', customRange.start)
         .lte('date', customRange.end);
       const { data: all } = await supabase
         .from('allowances')
         .select('*')
+        .or('status.is.null,status.neq.Đã xóa')
         .eq('employee_id', selectedSalary.id)
         .gte('date', customRange.start)
         .lte('date', customRange.end);

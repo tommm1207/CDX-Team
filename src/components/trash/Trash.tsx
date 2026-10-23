@@ -1,5 +1,14 @@
 import { motion } from 'motion/react';
-import { Package, Warehouse, Archive, UserCircle, Wallet, Layers, Factory } from 'lucide-react';
+import {
+  Package,
+  Warehouse,
+  Archive,
+  UserCircle,
+  Wallet,
+  Layers,
+  Factory,
+  Banknote,
+} from 'lucide-react';
 import { PageBreadcrumb } from '@/components/shared';
 
 export const Trash = ({
@@ -47,6 +56,12 @@ export const Trash = ({
       label: 'Dữ liệu sản xuất đã xóa',
       icon: Factory,
       color: 'bg-indigo-50 text-indigo-600',
+    },
+    {
+      id: 'deleted-advances',
+      label: 'Tạm ứng & phụ cấp đã xóa',
+      icon: Banknote,
+      color: 'bg-amber-50 text-amber-600',
     },
   ];
 

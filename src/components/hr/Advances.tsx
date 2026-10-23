@@ -122,6 +122,7 @@ export const Advances = ({
     const { data: advData } = await supabase
       .from('advances')
       .select('*, users(full_name)')
+      .or('status.is.null,status.neq.Đã xóa')
       .order('date', { ascending: false });
     if (advData) {
       setAdvances(advData.filter((a) => activeEmpIds.includes(a.employee_id)));
@@ -130,6 +131,7 @@ export const Advances = ({
     const { data: allData } = await supabase
       .from('allowances')
       .select('*, users(full_name)')
+      .or('status.is.null,status.neq.Đã xóa')
       .order('date', { ascending: false });
     if (allData) {
       const filteredAll = allData.filter((a) => activeEmpIds.includes(a.employee_id));
@@ -236,8 +238,12 @@ export const Advances = ({
     try {
       if (addToast) addToast('Đang thực hiện xóa...', 'info');
 
+      // Xóa mềm: chuyển vào Thùng rác (khôi phục được), bảng lương bỏ qua bản ghi 'Đã xóa'
       const table = activeTab === 'advances' ? 'advances' : 'allowances';
-      const { error } = await supabase.from(table).delete().eq('id', deletingId);
+      const { error } = await supabase
+        .from(table)
+        .update({ status: 'Đã xóa' })
+        .eq('id', deletingId);
 
       if (error) throw error;
 
@@ -248,7 +254,7 @@ export const Advances = ({
         recordId: deletingId,
       });
 
-      if (addToast) addToast('Xóa thành công!', 'success');
+      if (addToast) addToast('Đã chuyển vào Thùng rác!', 'success');
 
       setShowDeleteModal(false);
       setDeletingId(null);
@@ -633,9 +639,10 @@ export const Advances = ({
                 <AlertTriangle size={32} />
               </div>
               <div>
-                <h3 className="text-xl font-bold text-gray-900">Xóa vĩnh viễn</h3>
+                <h3 className="text-xl font-bold text-gray-900">Xóa vào Thùng rác</h3>
                 <p className="text-sm text-gray-500 mt-2">
-                  Bạn có chắc chắn muốn xóa vĩnh viễn mục này không?
+                  Mục này sẽ được chuyển vào Thùng rác và không còn tính vào bảng lương. Có thể khôi
+                  phục lại.
                 </p>
                 <div className="mt-3 p-3 bg-red-50 rounded-xl border border-red-100">
                   <p className="text-[11px] font-bold text-red-600 leading-tight">
@@ -658,7 +665,7 @@ export const Advances = ({
                   className="py-3 px-4 rounded-xl bg-red-600 text-white text-sm font-bold shadow-lg shadow-red-200 hover:bg-red-700 transition-all flex items-center justify-center gap-2"
                 >
                   <Trash2 size={16} />
-                  Xóa vĩnh viễn
+                  Chuyển vào Thùng rác
                 </button>
               </div>
             </motion.div>

@@ -157,8 +157,19 @@ export const ExpenseSettlements = ({
   const loadSettlementDetails = async (settlement: any) => {
     try {
       const [cRes, aRes] = await Promise.all([
-        supabase.from('costs').select('*').eq('settlement_id', settlement.id).order('date'),
-        supabase.from('advances').select('*').eq('settlement_id', settlement.id).order('date'),
+        // Bỏ các dòng đã bị xóa mềm từ màn Chi phí / Tạm ứng
+        supabase
+          .from('costs')
+          .select('*')
+          .eq('settlement_id', settlement.id)
+          .or('status.is.null,status.neq.Đã xóa')
+          .order('date'),
+        supabase
+          .from('advances')
+          .select('*')
+          .eq('settlement_id', settlement.id)
+          .or('status.is.null,status.neq.Đã xóa')
+          .order('date'),
       ]);
       const detailedSettlement = {
         ...settlement,
@@ -518,14 +529,16 @@ export const ExpenseSettlements = ({
         await supabase
           .from('costs')
           .update({ status: 'Đã duyệt' })
-          .eq('settlement_id', settlement.id);
+          .eq('settlement_id', settlement.id)
+          .neq('status', 'Đã xóa');
       }
 
       // 2. Approve advances
       await supabase
         .from('advances')
         .update({ status: 'Đã duyệt' })
-        .eq('settlement_id', settlement.id);
+        .eq('settlement_id', settlement.id)
+        .neq('status', 'Đã xóa');
 
       // 3. Approve and lock settlement
       const { error } = await supabase
@@ -568,11 +581,13 @@ export const ExpenseSettlements = ({
       await supabase
         .from('costs')
         .update({ status: 'Chờ duyệt' })
-        .eq('settlement_id', settlement.id);
+        .eq('settlement_id', settlement.id)
+        .neq('status', 'Đã xóa');
       await supabase
         .from('advances')
         .update({ status: 'Chờ duyệt' })
-        .eq('settlement_id', settlement.id);
+        .eq('settlement_id', settlement.id)
+        .neq('status', 'Đã xóa');
 
       addToast?.('Đã mở khoá phiếu quyết toán để chỉnh sửa', 'success');
       setConfirmUnlockModal(null);
