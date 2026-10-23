@@ -314,12 +314,32 @@ export const ExpenseSettlements = ({
 
         if (sError) throw sError;
 
-        // Delete old linked costs & advances, reinsert updated list
-        await supabase.from('costs').delete().eq('settlement_id', editingSettlement.id);
-        await supabase.from('advances').delete().eq('settlement_id', editingSettlement.id);
+        // Đồng bộ từng dòng thay cho xóa-hết-rồi-chèn-lại: cập nhật dòng có sẵn, chèn dòng mới,
+        // chỉ xóa đúng các dòng đã bị bỏ (từng dòng một, không vướng trigger chặn xóa > 5 dòng).
+        const syncLines = async (table: 'costs' | 'advances', rows: any[]) => {
+          const { data: existing, error: fetchErr } = await supabase
+            .from(table)
+            .select('id')
+            .eq('settlement_id', editingSettlement.id);
+          if (fetchErr) throw fetchErr;
 
-        // Reinsert costs
-        const costsToInsert = validCosts.map((c) => ({
+          const keptIds = new Set(rows.filter((r) => r.id).map((r) => r.id));
+          for (const row of rows) {
+            const { id, ...fields } = row;
+            const { error } = id
+              ? await supabase.from(table).update(fields).eq('id', id)
+              : await supabase.from(table).insert([fields]);
+            if (error) throw error;
+          }
+          for (const old of existing || []) {
+            if (keptIds.has(old.id)) continue;
+            const { error } = await supabase.from(table).delete().eq('id', old.id);
+            if (error) throw error;
+          }
+        };
+
+        const costsToSync = validCosts.map((c) => ({
+          id: c.id,
           cost_code: c.cost_code || generateSmartCode('CP'),
           date: c.date,
           employee_id: editingSettlement.employee_id || user.id,
@@ -334,22 +354,20 @@ export const ExpenseSettlements = ({
           warehouse_id: c.warehouse_id || null,
           cost_group_id: c.cost_group_id || null,
         }));
-        await supabase.from('costs').insert(costsToInsert);
+        await syncLines('costs', costsToSync);
 
-        // Reinsert advances
-        if (validAdvances.length > 0) {
-          const advancesToInsert = validAdvances.map((a) => ({
-            employee_id: editingSettlement.employee_id || user.id,
-            date: a.date,
-            amount: a.amount,
-            type: 'Tạm ứng',
-            notes: a.content.trim() || 'Nhận tạm ứng',
-            reason: a.content.trim() || 'Nhận tạm ứng',
-            status: editingSettlement.status || 'Chờ duyệt',
-            settlement_id: editingSettlement.id,
-          }));
-          await supabase.from('advances').insert(advancesToInsert);
-        }
+        const advancesToSync = validAdvances.map((a) => ({
+          id: a.id,
+          employee_id: editingSettlement.employee_id || user.id,
+          date: a.date,
+          amount: a.amount,
+          type: 'Tạm ứng',
+          notes: a.content.trim() || 'Nhận tạm ứng',
+          reason: a.content.trim() || 'Nhận tạm ứng',
+          status: editingSettlement.status || 'Chờ duyệt',
+          settlement_id: editingSettlement.id,
+        }));
+        await syncLines('advances', advancesToSync);
 
         addToast?.('Cập nhật phiếu quyết toán thành công', 'success');
       } else {
@@ -390,7 +408,8 @@ export const ExpenseSettlements = ({
           status: 'Chờ duyệt',
           settlement_id: newSettlement.id,
         }));
-        await supabase.from('costs').insert(costsToInsert);
+        const { error: costErr } = await supabase.from('costs').insert(costsToInsert);
+        if (costErr) throw costErr;
 
         // Insert advances
         if (validAdvances.length > 0) {
@@ -404,7 +423,8 @@ export const ExpenseSettlements = ({
             status: 'Chờ duyệt',
             settlement_id: newSettlement.id,
           }));
-          await supabase.from('advances').insert(advancesToInsert);
+          const { error: advErr } = await supabase.from('advances').insert(advancesToInsert);
+          if (advErr) throw advErr;
         }
 
         addToast?.('Tạo phiếu quyết toán thành công', 'success');
@@ -563,8 +583,19 @@ export const ExpenseSettlements = ({
   // Delete Settlement
   const handleDeleteSettlement = async (settlementId: string) => {
     try {
-      await supabase.from('costs').delete().eq('settlement_id', settlementId);
-      await supabase.from('advances').delete().eq('settlement_id', settlementId);
+      // Xóa từng dòng (trigger DB chặn xóa > 5 dòng/lần) và dừng ngay nếu có lỗi,
+      // để không xóa phiếu gốc khi các dòng con còn sót.
+      for (const table of ['costs', 'advances'] as const) {
+        const { data: lines, error: fetchErr } = await supabase
+          .from(table)
+          .select('id')
+          .eq('settlement_id', settlementId);
+        if (fetchErr) throw fetchErr;
+        for (const line of lines || []) {
+          const { error: delErr } = await supabase.from(table).delete().eq('id', line.id);
+          if (delErr) throw delErr;
+        }
+      }
       const { error } = await supabase.from('expense_settlements').delete().eq('id', settlementId);
       if (error) throw error;
 
