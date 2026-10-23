@@ -138,8 +138,10 @@ export const Attendance = ({
 
     if (action === 'remove') {
       if (current) {
-        await supabase.from('attendance').delete().eq('id', current.id);
-        if (addToast) addToast(`Đã xóa chấm công ngày ${day}/${selectedMonth}`, 'info');
+        const { error } = await supabase.from('attendance').delete().eq('id', current.id);
+        if (error) {
+          if (addToast) addToast('Lỗi xóa chấm công: ' + error.message, 'error');
+        } else if (addToast) addToast(`Đã xóa chấm công ngày ${day}/${selectedMonth}`, 'info');
       }
       fetchData();
       return;
@@ -149,13 +151,9 @@ export const Attendance = ({
     const hours = status === 'present' ? 8 : status === 'half-day' ? 4 : 0;
     const saveOt = status === 'absent' ? 0 : otHours === '' ? 0 : otHours;
 
-    if (current) {
-      await supabase
-        .from('attendance')
-        .update({ status, hours_worked: hours, overtime_hours: saveOt, notes })
-        .eq('id', current.id);
-    } else {
-      await supabase.from('attendance').insert([
+    // Upsert theo (employee_id, date): không phụ thuộc state cục bộ có thể đã cũ
+    const { error } = await supabase.from('attendance').upsert(
+      [
         {
           employee_id: empId,
           date: dateStr,
@@ -164,7 +162,13 @@ export const Attendance = ({
           overtime_hours: saveOt,
           notes,
         },
-      ]);
+      ],
+      { onConflict: 'employee_id,date' },
+    );
+    if (error) {
+      if (addToast) addToast('Lỗi chấm công: ' + error.message, 'error');
+      fetchData();
+      return;
     }
     if (addToast) {
       let msg = '';
@@ -254,19 +258,22 @@ export const Attendance = ({
             total: totalOps,
             label: `${emp?.full_name || ''} - ${dateStr}`,
           });
-          const tc = getBulkTC(empId, dateStr);
+          const tc = bulkStatus === 'absent' ? 0 : getBulkTC(empId, dateStr);
 
-          await supabase.from('attendance').delete().eq('employee_id', empId).eq('date', dateStr);
-
-          const { error } = await supabase.from('attendance').insert([
-            {
-              employee_id: empId,
-              date: dateStr,
-              status: bulkStatus,
-              hours_worked: hours,
-              overtime_hours: tc,
-            },
-          ]);
+          // Upsert thay cho xóa-rồi-chèn: nếu lỗi giữa chừng, bản ghi cũ vẫn còn nguyên
+          // và ghi chú (notes) của ngày đó không bị mất.
+          const { error } = await supabase.from('attendance').upsert(
+            [
+              {
+                employee_id: empId,
+                date: dateStr,
+                status: bulkStatus,
+                hours_worked: hours,
+                overtime_hours: tc,
+              },
+            ],
+            { onConflict: 'employee_id,date' },
+          );
 
           if (error) {
             isError = true;
@@ -332,27 +339,22 @@ export const Attendance = ({
   const saveEdit = async () => {
     const hours =
       editFormData.status === 'present' ? 8 : editFormData.status === 'half-day' ? 4 : 0;
-    if (editingAtt.id) {
-      await supabase
-        .from('attendance')
-        .update({
-          status: editFormData.status,
-          hours_worked: hours,
-          overtime_hours: editFormData.overtime,
-          notes: editFormData.notes,
-        })
-        .eq('id', editingAtt.id);
-    } else {
-      await supabase.from('attendance').insert([
+    const { error } = await supabase.from('attendance').upsert(
+      [
         {
           employee_id: editingAtt.empId,
           date: editingAtt.dateStr,
           status: editFormData.status,
           hours_worked: hours,
-          overtime_hours: editFormData.overtime,
+          overtime_hours: editFormData.status === 'absent' ? 0 : editFormData.overtime || 0,
           notes: editFormData.notes,
         },
-      ]);
+      ],
+      { onConflict: 'employee_id,date' },
+    );
+    if (error) {
+      if (addToast) addToast('Lỗi cập nhật chấm công: ' + error.message, 'error');
+      return;
     }
     setShowEditModal(false);
     if (addToast) addToast('Đã cập nhật chấm công thành công!', 'success');
@@ -668,7 +670,12 @@ export const Attendance = ({
                     <button
                       onClick={async () => {
                         if (editingAtt?.id) {
-                          await supabase.from('attendance').delete().eq('id', editingAtt.id);
+                          const { error } = await supabase
+                            .from('attendance')
+                            .delete()
+                            .eq('id', editingAtt.id);
+                          if (error && addToast)
+                            addToast('Lỗi xóa chấm công: ' + error.message, 'error');
                           fetchData();
                         }
                         setShowEditModal(false);
