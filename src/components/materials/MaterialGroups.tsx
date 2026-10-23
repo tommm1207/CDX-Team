@@ -228,7 +228,11 @@ export const MaterialGroups = ({
     try {
       // _inUse là cờ giao diện, material_groups là dữ liệu join — không phải cột của bảng
       const { id, _inUse, material_groups, ...rest } = materialFormData as any;
-      const dataToSubmit = { ...rest, group_id: selectedGroup.id };
+      const dataToSubmit = {
+        ...rest,
+        group_id: selectedGroup.id,
+        warehouse_id: rest.warehouse_id || null, // cột uuid: chuỗi rỗng không hợp lệ
+      };
 
       if (isEditingMaterial) {
         const { error } = await supabase.from('materials').update(dataToSubmit).eq('id', id);
@@ -829,6 +833,149 @@ export const MaterialGroups = ({
                     Đóng
                   </Button>
                 </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {/* Form thêm/sửa vật tư trong nhóm — bị mất ở 19566ea, khôi phục lại */}
+        {showMaterialModal && (
+          <div
+            className="fixed inset-0 z-[130] flex items-center justify-center p-4 bg-black/50 backdrop-blur-md overflow-hidden"
+            onClick={() => setShowMaterialModal(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-white rounded-[2rem] md:rounded-[2.5rem] shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col my-8 m-4 overflow-hidden relative z-10"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="bg-blue-600 p-6 text-white flex items-center justify-between rounded-t-[2rem] md:rounded-t-[2.5rem] flex-shrink-0">
+                <div className="flex items-center gap-3">
+                  <div
+                    className="p-2 bg-white/20 rounded-xl cursor-pointer hover:bg-white/30 transition-all active:scale-95"
+                    onClick={() => setShowMaterialModal(false)}
+                  >
+                    <Package size={24} />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-lg">
+                      {isEditingMaterial ? 'Cập nhật vật tư' : 'Thêm vật tư mới'}
+                    </h3>
+                    <p className="text-xs text-white/70">Thuộc nhóm: {selectedGroup?.name}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowMaterialModal(false)}
+                  className="p-2 hover:bg-white/20 rounded-xl transition-all"
+                >
+                  <X size={24} />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto custom-scrollbar">
+                <form
+                  onSubmit={handleMaterialSubmit}
+                  className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4"
+                >
+                  <div className="col-span-1 md:col-span-2 space-y-2 mb-2">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">
+                      Mã tham chiếu (Vật tư)
+                    </label>
+                    <div className="bg-primary/5 px-5 py-3.5 rounded-2xl border border-primary/10 text-sm font-black text-primary uppercase shadow-inner italic">
+                      {materialFormData.code || 'VAT-001'}
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-gray-400 uppercase">
+                      Tên vật tư *
+                    </label>
+                    <input
+                      required
+                      type="text"
+                      value={materialFormData.name}
+                      onChange={(e) =>
+                        setMaterialFormData({ ...materialFormData, name: e.target.value })
+                      }
+                      className="w-full px-4 py-2 rounded-xl border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-blue-500/20"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-gray-400 uppercase">
+                      Kho lưu trữ
+                    </label>
+                    <select
+                      value={materialFormData.warehouse_id || ''}
+                      onChange={(e) =>
+                        setMaterialFormData({ ...materialFormData, warehouse_id: e.target.value })
+                      }
+                      className="w-full px-4 py-2 rounded-xl border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-blue-500/20"
+                    >
+                      <option value="">-- Chọn kho --</option>
+                      {warehouses.map((w) => (
+                        <option key={w.id} value={w.id}>
+                          {w.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-gray-400 uppercase">
+                      Quy cách
+                    </label>
+                    <input
+                      type="text"
+                      value={materialFormData.specification || ''}
+                      onChange={(e) =>
+                        setMaterialFormData({ ...materialFormData, specification: e.target.value })
+                      }
+                      className="w-full px-4 py-2 rounded-xl border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-blue-500/20"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-gray-400 uppercase">
+                      Đơn vị tính
+                    </label>
+                    <input
+                      type="text"
+                      value={materialFormData.unit || ''}
+                      onChange={(e) =>
+                        setMaterialFormData({ ...materialFormData, unit: e.target.value })
+                      }
+                      className="w-full px-4 py-2 rounded-xl border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-blue-500/20"
+                    />
+                  </div>
+                  <div className="col-span-1 md:col-span-2 space-y-1">
+                    <label className="text-[10px] font-bold text-gray-400 uppercase">Mô tả</label>
+                    <textarea
+                      rows={2}
+                      value={materialFormData.description || ''}
+                      onChange={(e) =>
+                        setMaterialFormData({ ...materialFormData, description: e.target.value })
+                      }
+                      className="w-full px-4 py-2 rounded-xl border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-blue-500/20 resize-none"
+                    />
+                  </div>
+                  <div className="col-span-1 md:col-span-2 mt-4 flex justify-end gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setShowMaterialModal(false)}
+                      className="px-6 py-2 rounded-xl text-sm font-bold text-gray-500 hover:bg-gray-100 transition-colors"
+                    >
+                      Hủy
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={submitting}
+                      className="px-6 py-2 rounded-xl text-sm font-bold bg-blue-600 text-white hover:bg-blue-700 transition-colors shadow-lg shadow-blue-600/20 disabled:opacity-50"
+                    >
+                      {submitting ? 'Đang lưu...' : 'Lưu vật tư'}
+                    </button>
+                  </div>
+                </form>
               </div>
             </motion.div>
           </div>
