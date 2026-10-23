@@ -921,7 +921,7 @@ export const StockIn = ({
                   (selectedSlip.import_code || '').startsWith('SX-') ? (
                     <div className="px-3 py-2 bg-orange-50 border border-orange-100 rounded-xl text-xs text-orange-600 font-medium text-center">
                       {(selectedSlip.import_code || '').startsWith('SX-')
-                        ? 'Phiếu từ Sản xuất Cọc — duyệt từ màn hình Sản xuất Cọc'
+                        ? 'Phiếu từ Sản xuất Cọc — duyệt phiếu nhập cọc tại mục Phiếu duyệt'
                         : 'Phiếu từ Rã/Gộp — duyệt từ màn hình Rã/Gộp vật tư'}
                     </div>
                   ) : (

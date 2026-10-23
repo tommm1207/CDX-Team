@@ -33,6 +33,7 @@ import { formatDate, formatNumber, formatCurrency } from '@/utils/format';
 import { Button } from '@/components/shared';
 import { SortButton, SortOption } from '@/components/shared';
 import { logAudit } from '@/utils/auditLogger';
+import { getDetailedStock, validateFutureImpact } from '@/utils/inventory';
 
 interface ConfirmState {
   slip: any;
@@ -163,6 +164,36 @@ export const PendingApprovals = ({
     setActionLoading(slip.id);
     setErrorMsg(null);
     try {
+      // Kiểm tra tồn kho giống màn Xuất kho / Luân chuyển, để không duyệt vượt tồn từ đây
+      if (action === 'approve' && slip.table === 'stock_out') {
+        const qty = Number(slip.quantity) || 0;
+        const info = await getDetailedStock(
+          slip.material_id,
+          slip.warehouse_id,
+          slip.date,
+          slip.id,
+        );
+        if (info.available < qty) {
+          throw new Error(
+            `Không đủ tồn kho (khả dụng ${formatNumber(info.available)}, cần ${formatNumber(qty)})`,
+          );
+        }
+      }
+      if (action === 'approve' && slip.table === 'transfers') {
+        const impact = await validateFutureImpact(
+          slip.material_id,
+          slip.from_warehouse_id,
+          slip.date,
+          -(Number(slip.quantity) || 0),
+          slip.id,
+        );
+        if (!impact.valid) {
+          throw new Error(
+            `Kho nguồn không đủ tồn, sẽ bị âm vào ngày ${formatDate(impact.failedDate || slip.date)}`,
+          );
+        }
+      }
+
       const newStatus = action === 'approve' ? 'Đã duyệt' : 'Từ chối';
       const { error } = await supabase
         .from(slip.table)
@@ -184,11 +215,12 @@ export const PendingApprovals = ({
         slip.table === 'stock_in' &&
         slip.import_code?.startsWith('SX-')
       ) {
-        await supabase
+        const { error: childErr } = await supabase
           .from('stock_out')
           .update({ status: 'Đã duyệt' })
           .ilike('export_code', `${slip.import_code}-%`)
           .eq('status', 'Chờ duyệt');
+        if (childErr) throw childErr;
       }
 
       // Optimistic update
